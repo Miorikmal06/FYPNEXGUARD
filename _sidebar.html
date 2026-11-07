@@ -1,0 +1,241 @@
+<div class="sidebar" id="nx-sidebar">
+  <div class="sidebar-brand">
+    <svg class="nx-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M16 2.5 4.5 7v8.2c0 7.1 4.7 12.4 11.5 14.3 6.8-1.9 11.5-7.2 11.5-14.3V7z" fill="none" stroke="#38BDF8" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M10.5 21V11.5l11 9.5V11" fill="none" stroke="#F1F5F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <div class="nx-wordmark">NEXGUARD</div>
+      <div class="nx-wordsub">Condominium Seri Hijau</div>
+    </div>
+    <button class="nx-icon-btn nx-menu-btn" type="button" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleNavMenu(this)">
+      <svg class="icon" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav" aria-label="Main">
+    <div class="nx-nav-label">Operations</div>
+    <a href="/" class="{{ 'active' if active_page == 'dashboard' else '' }}" {% if active_page == 'dashboard' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      Live monitoring
+      <span class="nx-nav-badge" id="nav-alert-badge" style="display:none;">0</span>
+    </a>
+    <a href="/register" class="{{ 'active' if active_page == 'register' else '' }}" {% if active_page == 'register' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      Register plate
+    </a>
+    <a href="/motor-passes" class="{{ 'active' if active_page == 'motor_passes' else '' }}" {% if active_page == 'motor_passes' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>
+      Motor QR pass
+    </a>
+    <a href="/gallery" class="{{ 'active' if active_page == 'gallery' else '' }}" {% if active_page == 'gallery' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Vehicle gallery
+    </a>
+
+    <a href="/blacklist" class="{{ 'active' if active_page == 'blacklist' else '' }}" {% if active_page == 'blacklist' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+      Blacklist
+    </a>
+
+    <div class="nx-nav-label">Insight</div>
+    <a href="/intelligence" class="{{ 'active' if active_page == 'intelligence' else '' }}" {% if active_page == 'intelligence' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>
+      Security intelligence
+    </a>
+
+    {% if session.get('guard_role') == 'head_guard' %}
+    <div class="nx-nav-label">Administration</div>
+    <a href="/team" class="{{ 'active' if active_page == 'team' else '' }}" {% if active_page == 'team' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Guard team
+    </a>
+    <a href="/residents" class="{{ 'active' if active_page == 'residents' else '' }}" {% if active_page == 'residents' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Residents
+    </a>
+    {% endif %}
+
+    <div class="nx-nav-label">Account</div>
+    <a href="/profile" class="{{ 'active' if active_page == 'profile' else '' }}" {% if active_page == 'profile' %}aria-current="page"{% endif %}>
+      <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 17c.8-2 2.4-3 4.5-3s3.7 1 4.5 3"/></svg>
+      My profile
+    </a>
+  </nav>
+
+  <div class="sidebar-section-label">System status</div>
+  <div class="sidebar-status">
+    <div class="sidebar-status-row">
+      <span class="k">Camera</span>
+      <span class="status-val" id="sb-camera"><span class="status-dot off"></span>Checking</span>
+    </div>
+    <div class="sidebar-status-row">
+      <span class="k">Gate controller</span>
+      <span class="status-val" id="sb-gate" title="Pi reachability is a network check only; it does not confirm the physical gate position."><span class="status-dot off"></span>Checking</span>
+    </div>
+    <div class="sidebar-status-row">
+      <span class="k">Database</span>
+      <span class="status-val" id="sb-db"><span class="status-dot on"></span>Connected</span>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="nx-user">
+      <div class="nx-avatar" aria-hidden="true">{{ (session.get('guard_name', 'G')|trim).split(' ')|map('first')|join('')|upper|truncate(2, True, '') }}</div>
+      <div style="min-width:0;">
+        <a class="nx-user-name" href="/profile" title="My profile" style="color:inherit;text-decoration:none;display:block;">{{ session.get('guard_name', 'Guard') }}</a>
+        <div class="nx-user-role">{{ session.get('guard_role', 'guard')|replace('_', ' ') }}</div>
+      </div>
+      <div class="nx-user-actions">
+        <button class="nx-icon-btn" onclick="toggleTheme()" title="Switch light / dark" aria-label="Switch light or dark theme" type="button">
+          <svg class="icon" id="theme-icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon" id="theme-icon-moon" viewBox="0 0 24 24" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <a class="nx-icon-btn" href="/logout" title="Sign out" aria-label="Sign out">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="sidebar-clock" id="sidebar-clock">--:--:--</div>
+    <div class="sidebar-date" id="sidebar-date">-</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="idle-modal">
+  <div class="modal-box" style="max-width:360px; text-align:center;">
+    <svg class="icon" viewBox="0 0 24 24" style="width:34px; height:34px; color:var(--accent-amber); margin-bottom:10px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <div style="font-weight:700; font-size:15px; margin-bottom:6px;">Still there?</div>
+    <div style="font-size:12.5px; color:var(--muted); margin-bottom:16px;">You've been inactive for a while. For security, you'll be signed out in <span id="idle-countdown" style="font-weight:700; color:var(--text);">60</span>s.</div>
+    <button class="btn btn-primary" style="width:100%;" onclick="staySignedIn()">Stay Signed In</button>
+  </div>
+</div>
+
+<script>
+function isLightTheme() { return document.documentElement.getAttribute('data-theme') === 'light'; }
+function applyThemeIcons() {
+  const isDark = !isLightTheme();
+  const sun = document.getElementById('theme-icon-sun');
+  const moon = document.getElementById('theme-icon-moon');
+  if (sun) sun.style.display = isDark ? 'none' : 'block';
+  if (moon) moon.style.display = isDark ? 'block' : 'none';
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  if (isLightTheme()) {
+    root.setAttribute('data-theme', 'dark');
+    try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+  } else {
+    root.setAttribute('data-theme', 'light');
+    try { localStorage.setItem('theme', 'light'); } catch (e) {}
+  }
+  applyThemeIcons();
+}
+applyThemeIcons();
+
+function tickSidebarClock() {
+  const now = new Date();
+  const clockEl = document.getElementById('sidebar-clock');
+  const dateEl = document.getElementById('sidebar-date');
+  if (clockEl) clockEl.textContent = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  if (dateEl) dateEl.textContent = now.toLocaleDateString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+}
+tickSidebarClock();
+setInterval(tickSidebarClock, 1000);
+
+function sbCell(el, cls, label) { if (el) el.innerHTML = `<span class="status-dot ${cls}"></span>${label}`; }
+async function loadSidebarStatus() {
+  const camEl = document.getElementById('sb-camera');
+  const gateEl = document.getElementById('sb-gate');
+  const dbEl = document.getElementById('sb-db');
+  try {
+    const res = await fetch('/api/system/status');
+    if (!res.ok) throw new Error('status ' + res.status);
+    const data = await res.json();
+    sbCell(camEl, data.camera_online ? 'on' : 'bad', data.camera_online ? 'Online' : 'Offline');
+    if (!data.gate_integration) sbCell(gateEl, 'off', 'Disabled');
+    else if (data.gate_reachable === true) sbCell(gateEl, 'on', 'Reachable');
+    else if (data.gate_reachable === false) sbCell(gateEl, 'bad', 'No response');
+    else sbCell(gateEl, 'off', 'Checking');
+    sbCell(dbEl, 'on', 'Connected');
+  } catch (e) {
+    // The status endpoint itself failed: say so instead of showing stale "healthy" values.
+    sbCell(camEl, 'off', 'Unknown'); sbCell(gateEl, 'off', 'Unknown'); sbCell(dbEl, 'warn', 'Unreachable');
+  }
+}
+loadSidebarStatus();
+setInterval(loadSidebarStatus, 10000);
+
+/* ============ IDLE / SESSION TIMEOUT ============
+   Guard gets a "Still there?" warning 60s before IDLE_TIMEOUT_MINUTES of no
+   mouse/keyboard/touch activity, then is auto-logged-out. Any real interaction
+   resets the clock; "Stay Signed In" also pings the server so the Flask
+   session cookie itself gets refreshed (defence in depth). */
+const IDLE_TIMEOUT_MS = {{ IDLE_TIMEOUT_MINUTES }} * 60 * 1000;
+const IDLE_WARNING_MS = 60 * 1000;
+let idleWarnTimer = null;
+let idleLogoutTimer = null;
+let idleCountdownInterval = null;
+
+function showIdleModal() {
+  document.getElementById('idle-modal').classList.add('open');
+  let remaining = Math.floor(IDLE_WARNING_MS / 1000);
+  document.getElementById('idle-countdown').textContent = remaining;
+  idleCountdownInterval = setInterval(() => {
+    remaining -= 1;
+    document.getElementById('idle-countdown').textContent = Math.max(remaining, 0);
+    if (remaining <= 0) clearInterval(idleCountdownInterval);
+  }, 1000);
+}
+
+function hideIdleModal() {
+  document.getElementById('idle-modal').classList.remove('open');
+  clearInterval(idleCountdownInterval);
+}
+
+function scheduleIdleTimers() {
+  clearTimeout(idleWarnTimer);
+  clearTimeout(idleLogoutTimer);
+  idleWarnTimer = setTimeout(showIdleModal, IDLE_TIMEOUT_MS - IDLE_WARNING_MS);
+  idleLogoutTimer = setTimeout(() => { window.location.href = '/logout'; }, IDLE_TIMEOUT_MS);
+}
+
+function resetIdleTimer() {
+  // Once the warning modal is showing, only an explicit "Stay Signed In" click
+  // counts - otherwise moving the mouse while reading the warning would hide it
+  // right before the logout fires, defeating the point of the warning.
+  if (document.getElementById('idle-modal').classList.contains('open')) return;
+  scheduleIdleTimers();
+}
+
+function staySignedIn() {
+  hideIdleModal();
+  fetch('/api/system/status').catch(() => {});  // touches the session -> refreshes cookie lifetime
+  scheduleIdleTimers();
+}
+
+['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+  document.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+scheduleIdleTimers();
+
+function toggleNavMenu(btn) {
+  const sb = document.getElementById('nx-sidebar');
+  const open = sb.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+async function loadNavAlertBadge() {
+  const b = document.getElementById('nav-alert-badge');
+  if (!b) return;
+  try {
+    const res = await fetch('/api/alerts?acknowledged=false');
+    if (!res.ok) return;
+    const list = await res.json();
+    b.textContent = list.length; b.style.display = list.length ? '' : 'none';
+    b.title = list.length + ' unreviewed repeat-visit alert(s)';
+  } catch (e) { /* leave badge as is */ }
+}
+loadNavAlertBadge();
+setInterval(loadNavAlertBadge, 30000);
+</script>

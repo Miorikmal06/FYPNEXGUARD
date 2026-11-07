@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - NEXGUARD</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='login-scroll.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='login-onepass.css') }}">
+</head>
+<body>
+<main class="ls">
+  <div class="ls-bg" aria-hidden="true"></div>
+
+  <header class="ls-top">
+    <div><b>NEXGUARD</b><span>Guardhouse console</span></div>
+    <div><b>Condominium Seri Hijau</b><span>Smart barrier gate system</span></div>
+    <div><b>Registered guards</b><span>{{ roster|length }} on the roster</span></div>
+    <div><b>Need an account?</b><span>Ask your Head Guard</span></div>
+  </header>
+
+  <!-- roster = [{id, full_name}] only; never usernames or personal data -->
+  <script type="application/json" id="ls-data">{{ {'roster': roster, 'selectedId': selected_id}|tojson }}</script>
+
+  <section class="ls-stage" id="ls-stage" tabindex="0" aria-label="Choose your name to log in">
+    <div class="ls-row">
+      <div class="ls-static">Login as</div>
+      <div class="ls-view">
+        <ul class="ls-list" id="ls-list" role="listbox" aria-label="Registered guards"></ul>
+
+        <div class="ls-panel" id="ls-panel">
+          <form method="POST" action="/login" id="ls-form" novalidate>
+            <input type="hidden" name="guard_id" id="ls-guard-id">
+            <p class="ls-err" id="ls-err" role="alert">{{ error or '' }}</p>
+            <div class="ls-fld" id="ls-user-fld" hidden>
+              <label for="ls-username">Username</label>
+              <input id="ls-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Your username">
+            </div>
+            <div class="ls-fld">
+              <label for="ls-password">Password<span class="sr-only"> for <span id="ls-who"></span></span></label>
+              <input id="ls-password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="ls-btn" id="ls-submit">Enter</button>
+            <button type="button" class="ls-link" id="ls-back">Choose another</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <svg class="ls-logo" viewBox="0 0 32 32" aria-hidden="true">
+    <path d="M16 2.5 4.5 7v8.2c0 7.1 4.7 12.4 11.5 14.3 6.8-1.9 11.5-7.2 11.5-14.3V7z" fill="none" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M10.5 21V11.5l11 9.5V11" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <footer class="ls-foot">
+    <span><i></i>System online</span>
+    <div class="ls-end">
+      <span class="ls-hint">Scroll or ↑ ↓ to find your name &middot; Enter to select &middot; Esc to go back</span>
+      <button type="button" class="ls-sound" id="ls-sound" aria-pressed="true" title="Toggle scroll sound">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.6 7.6 0 0 1 0 11"/><path class="x" d="m16 9.5 5 5m0-5-5 5"/></svg>
+        <span id="ls-sound-label">Sound on</span>
+      </button>
+    </div>
+  </footer>
+  <div class="sr-only" id="ls-live" aria-live="polite"></div>
+</main>
+<script src="{{ url_for('static', filename='login-scroll.js') }}"></script>
+</body>
+</html>

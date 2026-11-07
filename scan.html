@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Motor QR scan - NEXGUARD</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='onepass.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script>(function(){try{var t=localStorage.getItem('theme');if(t=='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<style>
+  body { margin: 0; min-height: 100vh; display: block; }
+  .sc-wrap { max-width: 440px; margin: 0 auto; padding: 16px 16px 40px; }
+  .sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 12px; color: var(--muted); }
+  .sc-top a { color: var(--ai); text-decoration: none; font-weight: 600; }
+  .sc-brand { font-weight: 700; letter-spacing: .04em; color: var(--text); font-size: 14px; }
+  .sc-banner { border-radius: 14px; padding: 18px 16px; text-align: center; margin-bottom: 14px; border: 1px solid transparent; }
+  .sc-banner .big { font-size: 22px; font-weight: 800; letter-spacing: .03em; }
+  .sc-banner .sub { font-size: 13px; margin-top: 4px; }
+  .sc-banner.valid   { background: var(--accent-green-tint); border-color: var(--accent-green); color: var(--accent-green); }
+  .sc-banner.expired { background: var(--accent-amber-tint); border-color: var(--accent-amber); color: var(--accent-amber); }
+  .sc-banner.bad     { background: var(--accent-red-tint);   border-color: var(--accent-red);   color: var(--accent-red); }
+  .sc-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px 16px; margin-bottom: 14px; }
+  .sc-plate { font-family: var(--mono); font-weight: 800; font-size: 40px; letter-spacing: 2px; text-align: center; margin: 2px 0 14px; word-break: break-all; }
+  .sc-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .sc-row .k { color: var(--muted); }
+  .sc-row .v { font-weight: 600; text-align: right; }
+  .sc-confirm { display: flex; gap: 12px; align-items: flex-start; background: var(--panel-soft); border: 1px solid var(--border-strong); border-radius: 12px; padding: 14px; margin-bottom: 14px; cursor: pointer; }
+  .sc-confirm input { width: 24px; height: 24px; margin: 1px 0 0; flex-shrink: 0; accent-color: var(--accent-green); }
+  .sc-confirm span { font-size: 14px; line-height: 1.4; }
+  .sc-confirm b { font-family: var(--mono); letter-spacing: .5px; }
+  .sc-btn { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 14px; padding: 18px; font-size: 17px; font-weight: 800; cursor: pointer; text-align: center; text-decoration: none; }
+  .sc-btn.open { background: var(--accent-green); color: #fff; }
+  .sc-btn.open:disabled { opacity: .35; cursor: not-allowed; }
+  .sc-btn.ghost { background: var(--panel-soft); color: var(--text); border: 1px solid var(--border); font-size: 14px; padding: 13px; margin-top: 10px; }
+  #sc-msg { font-size: 14px; text-align: center; margin-top: 12px; min-height: 20px; }
+  .sc-help { font-size: 12.5px; color: var(--muted); line-height: 1.5; text-align: center; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="sc-wrap">
+  <div class="sc-top">
+    <span class="sc-brand">NEXGUARD</span>
+    <span>{{ guard_name }} &middot; <a href="/">Dashboard</a></span>
+  </div>
+
+  {% if state == 'valid' %}
+    <div class="sc-banner valid"><div class="big">VALID PASS</div><div class="sub">Check the plate on the motorcycle before opening</div></div>
+  {% elif state == 'expired' %}
+    <div class="sc-banner expired"><div class="big">PASS EXPIRED</div><div class="sub">Do not open with this QR</div></div>
+  {% elif state == 'inactive' %}
+    <div class="sc-banner bad"><div class="big">PASS REVOKED</div><div class="sub">This sticker was cancelled. Do not open with this QR</div></div>
+  {% elif state == 'unknown' %}
+    <div class="sc-banner bad"><div class="big">NOT REGISTERED</div><div class="sub">This QR code is not in the system (fake or wrong code)</div></div>
+  {% else %}
+    <div class="sc-banner expired"><div class="big">SYSTEM ERROR</div><div class="sub">{{ error }}</div></div>
+  {% endif %}
+
+  {% if p %}
+  <div class="sc-card">
+    <div class="sc-plate">{{ p.plate_number }}</div>
+    <div class="sc-row"><span class="k">Owner</span><span class="v">{{ p.owner_name or '-' }}</span></div>
+    <div class="sc-row"><span class="k">House</span><span class="v">{{ p.house_no or '-' }}</span></div>
+    <div class="sc-row"><span class="k">Valid until</span><span class="v" data-iso="{{ p.expires_at or '' }}">{{ 'No expiry' if not p.expires_at else p.expires_at }}</span></div>
+    {% if last_entry %}
+    <div class="sc-row"><span class="k">Last entry</span><span class="v" data-iso="{{ last_entry.created_at }}" data-time="1">{{ last_entry.created_at }}</span></div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if state == 'valid' %}
+    <label class="sc-confirm">
+      <input type="checkbox" id="sc-check">
+      <span>The plate on the motorcycle is <b>{{ p.plate_number }}</b> and matches this pass</span>
+    </label>
+    <button class="sc-btn open" id="sc-open" disabled>OPEN GATE</button>
+    <div id="sc-msg"></div>
+    <div class="sc-help">If the plate on the bike is different, the sticker was moved to another motorcycle. Do not open &mdash; tell the Head Guard.</div>
+  {% else %}
+    <div class="sc-help">If you still decide to let this vehicle in, use <b>Manual Override</b> on the dashboard and record the reason.</div>
+    <a class="sc-btn ghost" href="/">Go to dashboard</a>
+  {% endif %}
+  <a class="sc-btn ghost" href="/motor-passes">All motorcycle passes</a>
+</div>
+
+<script>
+// Show dates in Malaysia time.
+document.querySelectorAll('[data-iso]').forEach(el => {
+  const iso = el.dataset.iso; if (!iso) return;
+  const d = new Date(iso); if (isNaN(d)) return;
+  const opts = { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' };
+  if (el.dataset.time) Object.assign(opts, { hour: '2-digit', minute: '2-digit', hour12: false });
+  el.textContent = d.toLocaleString('en-GB', opts);
+});
+
+{% if state == 'valid' %}
+const TOKEN = {{ token|tojson }};
+const check = document.getElementById('sc-check'), btn = document.getElementById('sc-open'), msg = document.getElementById('sc-msg');
+check.addEventListener('change', () => { btn.disabled = !check.checked; });
+btn.addEventListener('click', async () => {
+  btn.disabled = true; check.disabled = true;
+  msg.style.color = 'var(--muted)'; msg.textContent = 'Opening gate...';
+  try {
+    const res = await fetch('/api/motor-passes/open', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                         body: JSON.stringify({ token: TOKEN, confirmed: check.checked }) });
+    let data = {}; try { data = await res.json(); } catch (e) {}
+    if (res.status === 401) { msg.style.color = 'var(--accent-red)'; msg.innerHTML = 'Session expired. <a href="/login" style="color:var(--ai);">Log in again</a>, then scan the QR again.'; return; }
+    if (res.ok) {
+      msg.style.color = 'var(--accent-green)';
+      msg.textContent = data.status === 'simulated' ? 'Logged (gate integration is OFF - nothing was sent to the Pi).' : 'Gate opened. Entry logged.';
+      btn.textContent = 'GATE OPENED';
+    } else {
+      msg.style.color = 'var(--accent-red)'; msg.textContent = data.error || 'Failed to open the gate';
+      btn.disabled = false; check.disabled = false;
+    }
+  } catch (err) {
+    msg.style.color = 'var(--accent-red)'; msg.textContent = 'Could not reach the server';
+    btn.disabled = false; check.disabled = false;
+  }
+});
+{% endif %}
+</script>
+</body>
+</html>

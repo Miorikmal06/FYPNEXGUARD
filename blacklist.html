@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blacklist - NEXGUARD</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard-fx.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='onepass.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script defer src="{{ url_for('static', filename='nexguard-fx.js') }}"></script>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t=='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+</head>
+<body>
+
+<div class="app-shell">
+  {% set active_page = 'blacklist' %}
+  {% include '_sidebar.html' %}
+
+  <div class="main">
+    <div class="main-header">
+      <div>
+        <div class="crumbs"><span>Operations</span><span>/</span><span>Blacklist</span></div>
+        <h1>Blacklist &amp; watchlist</h1>
+        <p>Banned plates are never let in automatically and trigger an alarm. Watchlist plates enter normally but the guards are alerted.</p>
+      </div>
+    </div>
+
+    {% if is_head %}
+    <div class="panel" style="margin-bottom:18px;">
+      <div class="panel-header"><span class="panel-title">Add a plate</span></div>
+      <div class="panel-body">
+        <form id="bl-form" class="bl-form" onsubmit="addEntry(event)">
+          <div class="field"><label for="bl-plate">Plate number</label><input type="text" id="bl-plate" placeholder="e.g. ABC1234" maxlength="12" required autocapitalize="characters"></div>
+          <div class="field"><label for="bl-severity">Type</label>
+            <select id="bl-severity"><option value="ban">Ban - never open, alarm</option><option value="watch">Watch - open, but alert guards</option></select></div>
+          <div class="field bl-wide"><label for="bl-reason">Reason (shown to guards)</label><input type="text" id="bl-reason" placeholder="e.g. Previous theft, banned by management" maxlength="200" required></div>
+          <div class="field"><label for="bl-days">Expires after (days, optional)</label><input type="number" id="bl-days" min="1" max="3650" placeholder="No expiry"></div>
+          <div class="field bl-submit"><button class="btn btn-primary" type="submit" id="bl-submit">Add to list</button></div>
+        </form>
+        <div id="bl-status" role="status" style="font-size:12.5px; margin-top:8px;"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Current list <span class="badge" id="bl-count">0</span></span>
+        <input type="text" id="bl-search" placeholder="Search plate / reason" oninput="renderList()" aria-label="Search the list" style="padding:7px 10px; font-size:12.5px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2, transparent); color:var(--text);">
+      </div>
+      <div class="panel-body">
+        <div id="bl-list"><div class="empty-state">Loading...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const IS_HEAD = {{ 'true' if is_head else 'false' }};
+let ENTRIES = [];
+function escHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(iso) { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? '-' : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+
+async function loadList() {
+  const el = document.getElementById('bl-list');
+  try {
+    const res = await fetch('/api/blacklist');
+    const data = await res.json();
+    if (!res.ok) { el.innerHTML = `<div class="empty-state">${escHtml(data.error || 'Could not load the list.')}</div>`; return; }
+    ENTRIES = data; renderList();
+  } catch (e) { el.innerHTML = '<div class="empty-state">Could not load the list.</div>'; }
+}
+
+function renderList() {
+  const q = (document.getElementById('bl-search').value || '').trim().toUpperCase();
+  const rows = ENTRIES.filter(r => !q || (r.plate_number || '').includes(q.replace(/\s/g, '')) || (r.reason || '').toUpperCase().includes(q));
+  document.getElementById('bl-count').textContent = ENTRIES.length;
+  const el = document.getElementById('bl-list');
+  if (!rows.length) { el.innerHTML = `<div class="empty-state">${ENTRIES.length ? 'No match.' : 'No plates on the list.'}</div>`; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="plate-row bl-row" style="cursor:default;">
+      <div class="bl-main">
+        <span class="plate-chip status-unregistered static" style="font-size:13px; padding:4px 10px;">${escHtml(r.plate_number)}</span>
+        <div>
+          <div style="font-weight:700; font-size:13px;">${r.severity === 'ban' ? 'BANNED' : 'WATCHLIST'} <span class="owner" style="font-weight:400;">&middot; ${escHtml(r.reason)}</span></div>
+          <div class="owner">Added by ${escHtml(r.added_by)} &middot; ${fmt(r.added_at)}${r.expires_at ? ' &middot; expires ' + fmt(r.expires_at) : ''}</div>
+        </div>
+      </div>
+      ${IS_HEAD ? `<button class="btn-ghost-mini" onclick="removeEntry(${Number(r.id)}, '${escHtml(r.plate_number)}')">Remove</button>` : ''}
+    </div>`).join('');
+}
+
+async function addEntry(ev) {
+  ev.preventDefault();
+  const btn = document.getElementById('bl-submit'), st = document.getElementById('bl-status');
+  btn.disabled = true; st.textContent = '';
+  try {
+    const res = await fetch('/api/admin/blacklist', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plate_number: document.getElementById('bl-plate').value, severity: document.getElementById('bl-severity').value,
+                              reason: document.getElementById('bl-reason').value, expiry_days: document.getElementById('bl-days').value }) });
+    const data = await res.json();
+    if (!res.ok) { st.style.color = 'var(--red, #f87171)'; st.textContent = data.error || 'Could not add.'; }
+    else { st.style.color = 'var(--green, #4ade80)'; st.textContent = 'Added.'; document.getElementById('bl-form').reset(); loadList(); }
+  } catch (e) { st.style.color = 'var(--red, #f87171)'; st.textContent = 'Network error.'; }
+  btn.disabled = false;
+}
+
+async function removeEntry(id, plate) {
+  if (!confirm('Remove ' + plate + ' from the list?')) return;
+  const res = await fetch('/api/admin/blacklist/' + id, { method: 'DELETE' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { alert(data.error || 'Could not remove.'); return; }
+  loadList();
+}
+loadList();
+</script>
+</body>
+</html>

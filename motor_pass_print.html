@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR sticker - {{ p.plate_number }}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #e5e7eb; color: #0b1220; }
+  .bar { display: flex; gap: 10px; align-items: center; justify-content: center; padding: 14px; flex-wrap: wrap; }
+  .bar button, .bar a { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 8px; border: 0; background: #0369A1; color: #fff; cursor: pointer; text-decoration: none; }
+  .bar a { background: #fff; color: #0b1220; border: 1px solid #cbd5e1; }
+  .bar span { font-size: 13px; color: #475569; }
+  .card { width: 7.5cm; margin: 10px auto 30px; background: #fff; border: 2px solid #0b1220; border-radius: 12px; padding: 12px 12px 10px; text-align: center; }
+  .brand { font-weight: 800; letter-spacing: .12em; font-size: 12px; }
+  .brand small { display: block; font-weight: 600; letter-spacing: .02em; font-size: 9px; color: #475569; margin-top: 1px; }
+  .qr { width: 5.6cm; height: 5.6cm; margin: 8px auto 6px; display: block; }
+  .plate { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-weight: 800; font-size: 22px; letter-spacing: 2px; border: 2px solid #0b1220; border-radius: 6px; padding: 2px 8px; display: inline-block; }
+  .owner { font-size: 11px; margin-top: 6px; color: #334155; }
+  .code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 11px; letter-spacing: 1px; margin-top: 5px; }
+  .hint { font-size: 8.5px; color: #64748b; margin-top: 5px; }
+  @media print {
+    body { background: #fff; }
+    .bar { display: none; }
+    .card { margin: 0; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <button onclick="window.print()">Print</button>
+    <a href="/motor-passes">Back</a>
+    <span>Print, cut out, then laminate or use a waterproof sticker. Stick it on the front of the motorcycle where the guard can see it.</span>
+  </div>
+  <div class="card">
+    <div class="brand">NEXGUARD<small>Condominium Seri Hijau &middot; Motorcycle pass</small></div>
+    <img class="qr" src="/motor-passes/{{ p.id }}/qr.svg" alt="QR code">
+    <div class="plate">{{ p.plate_number }}</div>
+    <div class="owner">{{ p.owner_name or '' }}{% if p.house_no %} &middot; {{ p.house_no }}{% endif %}</div>
+    <div class="code">{{ p.code }}</div>
+    <div class="hint">Show this to the guard at the gate</div>
+  </div>
+</body>
+</html>

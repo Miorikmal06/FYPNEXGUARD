@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ 'My profile' if is_self else g.full_name }} - NEXGUARD</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard-fx.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='onepass.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script defer src="{{ url_for('static', filename='nexguard-fx.js') }}"></script>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t=='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+</head>
+<body>
+{% set initials = (g.full_name|trim).split(' ')|map('first')|join('')|upper|truncate(2, True, '') %}
+<div class="app-shell">
+  {% set active_page = 'profile' if is_self else 'team' %}
+  {% include '_sidebar.html' %}
+
+  <div class="main">
+    <div class="main-header">
+      <div>
+        <h1>{{ 'My profile' if is_self else g.full_name }}</h1>
+        <p>{{ 'Your identity card and personal details' if is_self else 'Head Guard view - identity card and personal details' }}</p>
+      </div>
+      {% if not is_self %}<a class="btn" href="/team">&larr; Back to team</a>{% endif %}
+    </div>
+
+    <div class="pf-grid">
+      <!-- ================= hanging ID card ================= -->
+      <div class="pf-scene" id="pf-scene">
+        <div class="pf-rail"></div>
+        <div class="pf-swing" id="pf-swing" aria-label="Identity card for {{ g.full_name }}. Drag to swing.">
+          <div class="pf-strap"></div>
+          <div class="pf-clip"></div>
+          <div class="pf-card">
+            <div class="pf-slot"></div>
+            <div class="pf-card-head">
+              <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.5 4.5 7v8.2c0 7.1 4.7 12.4 11.5 14.3 6.8-1.9 11.5-7.2 11.5-14.3V7z" fill="none" stroke="#7dd3fc" stroke-width="1.8" stroke-linejoin="round"/><path d="M10.5 21V11.5l11 9.5V11" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div><b>NEXGUARD</b><span>Condominium Seri Hijau</span></div>
+            </div>
+            <div class="pf-photo">
+              <div class="ini">{{ initials }}</div>
+              {% if g.photo_path %}<img src="/{{ g.photo_path }}" alt="Photo of {{ g.full_name }}" draggable="false" onerror="this.style.display='none'">{% endif %}
+            </div>
+            <div class="pf-name">{{ g.full_name }}</div>
+            <div class="pf-role {{ 'head' if g.role == 'head_guard' else '' }}">{{ 'Head Guard' if g.role == 'head_guard' else 'Guard' }}</div>
+            <div class="pf-rows">
+              <div><span class="k">IC No.</span><span class="v">{{ g.ic_number or '-' }}</span></div>
+              <div><span class="k">Staff ID</span><span class="v">NG-{{ '%04d'|format(g.id) }}</span></div>
+              <div><span class="k">Username</span><span class="v">@{{ g.username }}</span></div>
+            </div>
+            <div class="pf-bar" aria-hidden="true"></div>
+            <div class="pf-foot">AUTHORISED PERSONNEL</div>
+          </div>
+        </div>
+        <div class="pf-hint">Drag the card to swing it</div>
+      </div>
+
+      <!-- ================= details ================= -->
+      <div>
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header"><span class="panel-title">Personal details</span></div>
+          <div class="panel-body" style="padding:16px;">
+            <dl class="pf-dl">
+              <div><span class="k">Full name</span>{{ g.full_name }}</div>
+              <div><span class="k">IC number</span><span class="mono">{{ g.ic_number or '-' }}</span></div>
+              <div><span class="k">Role</span>{{ 'Head Guard' if g.role == 'head_guard' else 'Guard' }}</div>
+              <div><span class="k">Username</span><span class="mono">@{{ g.username }}</span></div>
+              <div><span class="k">Gender</span>{{ g.gender or '-' }}</div>
+              <div><span class="k">Phone no.</span>{{ g.phone or '-' }}</div>
+              <div class="wide"><span class="k">Home address</span>{{ g.address or '-' }}</div>
+              {% if g.created_at %}<div><span class="k">Account created</span><span class="mono">{{ g.created_at[:10] }}</span></div>{% endif %}
+            </dl>
+            {% if not is_self %}<p style="margin:16px 0 0;font-size:var(--fs-sm);color:var(--muted);">Edit these details (and the photo / IC number on the card) from <a href="/team" style="color:var(--ai);">Guard team</a>.</p>{% endif %}
+            {% if is_self and (not g.photo_path or not g.ic_number) %}<p style="margin:16px 0 0;font-size:var(--fs-sm);color:var(--accent-amber);">{{ 'Your photo' if not g.photo_path else 'Your IC number' }} isn't on file yet - ask your Head Guard to add it so it shows on your card.</p>{% endif %}
+          </div>
+        </div>
+
+        {% if stats %}
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">Last 30 days</span></div>
+          <div class="panel-body" style="padding:16px;">
+            <div class="pf-stats">
+              <div class="pf-stat"><b>{{ stats.login_sessions }}</b><span>Login sessions</span></div>
+              <div class="pf-stat"><b>{{ stats.hours_on_duty }}</b><span>Hours on duty</span></div>
+              <div class="pf-stat"><b>{{ stats.registrations }}</b><span>Plates registered</span></div>
+              <div class="pf-stat"><b>{{ stats.manual_overrides }}</b><span>Manual overrides</span></div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Hanging card: a damped pendulum around the rail. Idle it swings in from an offset and settles;
+   drag it with the mouse/finger and let go to swing. Honors prefers-reduced-motion (no swing). */
+(function () {
+  var scene = document.getElementById('pf-scene'), swing = document.getElementById('pf-swing');
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var theta = reduce ? 0 : 0.28, omega = 0, dragging = false, last = performance.now();
+  var G = 26, LEN = 1, DAMP = 0.9;                 // tuned for feel, not physical units
+  var anchor = { x: 0, y: 0 }, prevT = 0, prevTime = 0;
+
+  function setAnchor() {
+    var r = scene.getBoundingClientRect();
+    // the swing element sits at (50%, 6px) of the scene; its un-rotated origin is the pivot
+    anchor.x = r.left + r.width / 2; anchor.y = r.top + 6;
+  }
+  function apply() { swing.style.transform = 'rotate(' + (theta * 180 / Math.PI).toFixed(3) + 'deg)'; }
+
+  function step(now) {
+    var dt = Math.min(0.033, (now - last) / 1000); last = now;
+    if (!dragging && !reduce) {
+      var acc = -(G / LEN) * Math.sin(theta) - DAMP * omega;
+      omega += acc * dt; theta += omega * dt;
+      if (Math.abs(theta) < 0.0004 && Math.abs(omega) < 0.002) { theta = 0; omega = 0; }
+    }
+    apply(); requestAnimationFrame(step);
+  }
+
+  function pointerAngle(e) {
+    var dx = e.clientX - anchor.x, dy = e.clientY - anchor.y;
+    var a = Math.atan2(-dx, Math.max(40, dy));      // 0 when straight below the pivot
+    return Math.max(-1.15, Math.min(1.15, a));
+  }
+  swing.addEventListener('pointerdown', function (e) {
+    setAnchor(); dragging = true; swing.classList.add('grab'); swing.setPointerCapture(e.pointerId);
+    prevT = theta; prevTime = performance.now(); e.preventDefault();
+  });
+  swing.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var t = pointerAngle(e), now = performance.now(), dt = Math.max(0.008, (now - prevTime) / 1000);
+    omega = (t - prevT) / dt * 0.6;                 // carry some of the drag speed into the release
+    omega = Math.max(-9, Math.min(9, omega));
+    theta = t; prevT = t; prevTime = now;
+  });
+  function release() { if (!dragging) return; dragging = false; swing.classList.remove('grab'); }
+  swing.addEventListener('pointerup', release);
+  swing.addEventListener('pointercancel', release);
+  window.addEventListener('resize', setAnchor);
+
+  setAnchor(); apply(); requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>

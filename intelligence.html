@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security intelligence - NEXGUARD</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='nexguard-fx.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='onepass.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script defer src="{{ url_for('static', filename='nexguard-fx.js') }}"></script>
+<script>(function(){try{var t=localStorage.getItem('theme');if(t=='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}})();</script>
+<script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+<script>
+  // Same fallback the Analytics page uses if the vendored Chart.js is missing.
+  window.addEventListener('error', function onChartErr(e) {
+    if (e.target && e.target.tagName === 'SCRIPT' && e.target.src && e.target.src.includes('chart.umd.min.js') && !e.target.src.includes('cdnjs')) {
+      window.removeEventListener('error', onChartErr);
+      const f = document.createElement('script'); f.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js'; document.head.appendChild(f);
+    }
+  }, true);
+</script>
+</head>
+<body>
+<div class="app-shell">
+  {% set active_page = 'intelligence' %}
+  {% include '_sidebar.html' %}
+
+  <div class="main">
+    <div class="main-header">
+      <div>
+        <div class="crumbs"><span>Insight</span><span>/</span><span>Security intelligence</span></div>
+        <h1>Security intelligence</h1>
+        <p>Audit of gate activity, registrations, overrides and guard sessions. Every figure opens the records behind it.</p>
+      </div>
+      <div class="nx-meta" id="gen-meta" aria-live="polite"></div>
+    </div>
+
+    <div class="nx-toolbar">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div class="nx-seg" role="group" aria-label="Date range" id="range-seg">
+          <button type="button" data-r="today" aria-pressed="false">Today</button>
+          <button type="button" data-r="7d" aria-pressed="true">Last 7 days</button>
+          <button type="button" data-r="30d" aria-pressed="false">Last 30 days</button>
+          <button type="button" data-r="custom" aria-pressed="false">Custom</button>
+        </div>
+        <div class="nx-date" id="custom-range">
+          <input type="date" id="d-from" aria-label="From date"><span class="nx-meta">to</span><input type="date" id="d-to" aria-label="To date">
+          <button class="nx-btn primary" type="button" id="d-apply">Apply</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="nx-meta" id="range-label">Loading range...</span>
+        <button class="nx-btn" type="button" id="refresh-btn" title="Reload the current section">Refresh</button>
+      </div>
+    </div>
+
+    <div class="nx-tabs" role="tablist" id="tabs" aria-label="Intelligence sections">
+      <button role="tab" data-s="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-s="traffic" aria-selected="false">Traffic</button>
+      <button role="tab" data-s="access" aria-selected="false">Access</button>
+      <button role="tab" data-s="ai" aria-selected="false">AI recognition</button>
+      <button role="tab" data-s="investigation" aria-selected="false">Investigation</button>
+      <button role="tab" data-s="guards" aria-selected="false">Guards</button>
+      <button role="tab" data-s="reliability" aria-selected="false">Reliability</button>
+      <button role="tab" data-s="visitors" aria-selected="false">Visitors</button>
+      <button role="tab" data-s="incidents" aria-selected="false">Incidents</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="nx-section show" id="sec-overview" role="tabpanel">
+      <div class="nx-kpis" id="kpi-grid"></div>
+      <div class="nx-grid2">
+        <div class="panel"><div class="panel-header"><span class="panel-title">Logged events per day</span><span class="nx-meta">Click a segment to open its records</span></div>
+          <div class="panel-body"><div class="nx-chart tall"><canvas id="ch-daily"></canvas></div>
+          <p class="nx-hint" id="daily-hint"></p></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">What this data can and cannot show</span></div>
+          <div class="panel-body" id="ov-availability"></div></div>
+      </div>
+    </section>
+
+    <!-- TRAFFIC -->
+    <section class="nx-section" id="sec-traffic" role="tabpanel">
+      <div class="nx-note"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><b>Entry and exit are not distinguished.</b> The system has one camera and stores no direction, so these charts count <b>logged recognition events</b> (one per plate read, with an 8-second per-plate cooldown), not camera frames and not confirmed vehicle visits. The same vehicle can produce several events.</div></div>
+      <div class="nx-grid2">
+        <div class="panel"><div class="panel-header"><span class="panel-title">Events by hour of day</span><span class="nx-meta">Malaysia time</span></div>
+          <div class="panel-body"><div class="nx-chart tall"><canvas id="ch-hourly"></canvas></div><p class="nx-hint">Hour is the local hour the event was logged. Click a bar to list those events across the selected dates.</p></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Vehicle detections per day</span></div>
+          <div class="panel-body"><div class="nx-chart tall"><canvas id="ch-detect-line"></canvas></div><p class="nx-hint">Authorized plus unregistered reads. Manual overrides are not vehicle detections and are excluded.</p></div></div>
+      </div>
+      <div class="panel"><div class="panel-header"><span class="panel-title">Peak periods</span></div><div class="panel-body" id="peak-list"></div></div>
+    </section>
+
+    <!-- ACCESS -->
+    <section class="nx-section" id="sec-access" role="tabpanel">
+      <div class="nx-kpis" id="access-kpis"></div>
+      <div class="nx-grid2">
+        <div class="panel"><div class="panel-header"><span class="panel-title">Access decisions over time</span><span class="nx-meta">Click a segment to open records</span></div>
+          <div class="panel-body"><div class="nx-chart"><canvas id="ch-access"></canvas></div></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Manual override reasons</span></div>
+          <div class="panel-body"><div class="nx-chart"><canvas id="ch-reasons"></canvas></div><p class="nx-hint">Click a bar to list overrides recorded with that reason.</p></div></div>
+      </div>
+      <div class="nx-note warn"><svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>An <b>unregistered plate</b> is not automatically a security concern (visitors, deliveries and new residents all appear here), and a misread plate is not the same as an unauthorized attempt. Uncertain reads, rejected expired passes and other rejection reasons are <b>not stored separately</b>, so they cannot be counted.</div></div>
+    </section>
+
+    <!-- AI -->
+    <section class="nx-section" id="sec-ai" role="tabpanel">
+      <div class="nx-kpis" id="ai-kpis"></div>
+      <div class="nx-grid2">
+        <div class="panel"><div class="panel-header"><span class="panel-title">Detector confidence of logged reads</span><span class="nx-meta">Click a bar to list reads</span></div>
+          <div class="panel-body"><div class="nx-chart"><canvas id="ch-conf"></canvas></div><p class="nx-hint" id="conf-source"></p></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Average confidence per day</span></div>
+          <div class="panel-body"><div class="nx-chart"><canvas id="ch-conf-trend"></canvas></div></div></div>
+      </div>
+      <div class="panel"><div class="panel-header"><span class="panel-title">Not measured today</span></div><div class="panel-body" id="ai-missing"></div></div>
+    </section>
+
+    <!-- INVESTIGATION -->
+    <section class="nx-section" id="sec-investigation" role="tabpanel">
+      <div class="panel" style="margin-bottom:16px;"><div class="panel-body">
+        <form id="inv-form" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input class="nx-input" id="inv-plate" placeholder="Plate number, e.g. ABC1234" maxlength="14" autocomplete="off" spellcheck="false" style="min-width:230px; font-family:var(--mono); text-transform:uppercase;" aria-label="Plate number">
+          <select class="nx-select" id="inv-scope" aria-label="Date scope"><option value="range">Selected date range</option><option value="all">All recorded history</option></select>
+          <button class="nx-btn primary" type="submit">Search history</button>
+        </form>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:12px; font-size:var(--fs-sm); color:var(--muted);" id="inv-types">
+          <label><input type="checkbox" value="detection" checked> Recognition events</label>
+          <label><input type="checkbox" value="registration" checked> Registration</label>
+          <label><input type="checkbox" value="alert" checked> Repeat-visit alerts</label>
+          <label><input type="checkbox" value="override_nearby" checked> Nearby manual overrides</label>
+        </div>
+      </div></div>
+      <div id="inv-result"><div class="nx-empty"><b>Search a plate to see its recorded history</b>You'll get its registration, every logged read and related alerts as one timeline.</div></div>
+    </section>
+
+    <!-- GUARDS -->
+    <section class="nx-section" id="sec-guards" role="tabpanel">
+      <div class="nx-note"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div><b>Logged-in time is not verified duty time.</b> It is the gap between sign-in and sign-out. A session with no sign-out is shown as open or incomplete and is never counted as hours worked. Counts are activity records, not a performance measure, so guards are listed alphabetically.</div></div>
+      <div class="nx-kpis" id="guard-kpis"></div>
+      <div class="panel" style="margin-bottom:16px;"><div class="panel-header"><span class="panel-title">Guards in this period</span></div>
+        <div class="panel-body nx-table-wrap" id="guard-table"></div></div>
+      <div class="nx-grid3">
+        <div class="panel"><div class="panel-header"><span class="panel-title">Sign-ins per day</span></div><div class="panel-body"><div class="nx-chart"><canvas id="ch-sess-day"></canvas></div><p class="nx-hint">Click a bar to list that day's sessions.</p></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Sign-ins by hour</span></div><div class="panel-body"><div class="nx-chart"><canvas id="ch-sess-hour"></canvas></div></div></div>
+        <div class="panel"><div class="panel-header"><span class="panel-title">Closed session length</span></div><div class="panel-body"><div class="nx-chart"><canvas id="ch-sess-dur"></canvas></div><p class="nx-hint">Sessions that have a recorded sign-out only.</p></div></div>
+      </div>
+    </section>
+
+    <!-- RELIABILITY -->
+    <section class="nx-section" id="sec-reliability" role="tabpanel">
+      <div class="nx-kpis" id="rel-kpis"></div>
+      <div class="panel"><div class="panel-header"><span class="panel-title">Recorded vs not recorded</span></div>
+        <div class="panel-body nx-table-wrap" id="rel-availability"></div></div>
+    </section>
+
+    <!-- VISITORS -->
+    <section class="nx-section" id="sec-visitors" role="tabpanel">
+      <div class="nx-kpis" id="vis-kpis"></div>
+      <div class="nx-note"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div>Expired visitor passes are <b>removed automatically about every minute</b> and their registration record is deleted, so historical expired passes cannot be listed. "Expired" below means expired but not yet removed. This page only reads passes; it never revokes or edits them.</div></div>
+      <div class="panel"><div class="panel-header"><span class="panel-title">Visitor passes on file</span></div><div class="panel-body" id="vis-table"></div></div>
+    </section>
+
+    <!-- INCIDENTS -->
+    <section class="nx-section" id="sec-incidents" role="tabpanel">
+      <div class="nx-kpis" id="inc-kpis"></div>
+      <div class="nx-note"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div>Alerts are raised when a plate is read several times within an hour. That is a prompt to look, not a finding about the vehicle or its owner. Marking an alert reviewed records your name <span id="reviewer-note"></span></div></div>
+      <div class="panel"><div class="panel-header"><span class="panel-title">Repeat-visit alerts</span></div><div class="panel-body" id="inc-table"></div></div>
+    </section>
+  </div>
+</div>
+
+<div class="nx-scrim" id="scrim"></div>
+<aside class="nx-drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+  <div class="nx-drawer-head">
+    <div style="flex:1; min-width:0;"><h2 id="drawer-title">Records</h2><div class="sub" id="drawer-sub"></div></div>
+    <a class="nx-btn" id="drawer-export" href="#" download>Download CSV</a>
+    <button class="nx-btn" type="button" id="drawer-close" aria-label="Close and return to analytics">Close</button>
+  </div>
+  <div id="drawer-mount" style="display:flex; flex-direction:column; flex:1; min-height:0;"></div>
+</aside>
+
+<script>window.NX_IS_HEAD = {{ 'true' if is_head else 'false' }};</script>
+{% raw %}
+<script>
+const IS_HEAD = window.NX_IS_HEAD !== false;
+/* ============================== helpers ============================== */
+const TZ = 'Asia/Kuala_Lumpur';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const fmtDT = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtD = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: '2-digit', month: 'short', year: 'numeric' });
+function dt(iso) { if (!iso) return '-'; const d = new Date(iso); return isNaN(d) ? esc(iso) : fmtDT.format(d); }
+function dOnly(isoDay) { const d = new Date(isoDay + 'T00:00:00+08:00'); return isNaN(d) ? isoDay : fmtD.format(d); }
+function dur(min) { if (min == null) return '-'; if (min < 60) return Math.round(min) + ' min'; const h = Math.floor(min / 60); return h + ' h ' + Math.round(min - h * 60) + ' min'; }
+function safeImg(u) { return (typeof u === 'string' && u.startsWith('/captures/')) ? encodeURI(u) : null; }
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const hh = h => String(h).padStart(2, '0') + ':00';
+
+const ICON_GO = '<span class="go" aria-hidden="true">View records &rsaquo;</span>';
+function chip(tone, text, title) { return `<span class="nx-chip ${tone}"${title ? ` title="${esc(title)}"` : ''}>${esc(text)}</span>`; }
+
+async function api(path, params) {
+  const url = path + (params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v !== '' && v != null)).toString() : '');
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (res.status === 401) { window.location.href = '/login'; throw new Error('Signed out'); }
+  let body = null; try { body = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error((body && body.error) || ('Request failed (' + res.status + ')'));
+  return body;
+}
+
+/* ============================== state ============================== */
+const S = { range: '7d', from: '', to: '', section: 'overview', loaded: {}, meta: null, summary: null, traffic: null, charts: {}, rangeInfo: null };
+function rangeParams() { return S.range === 'custom' ? { range: 'custom', from: S.from, to: S.to } : { range: S.range }; }
+function rangeKey() { return JSON.stringify(rangeParams()); }
+
+/* ============================== charts ============================== */
+function chartBase() {
+  if (typeof Chart === 'undefined') return false;
+  Chart.defaults.color = css('--muted') || '#94A3B8';
+  Chart.defaults.borderColor = css('--border') || '#263345';
+  Chart.defaults.font.family = "Inter, system-ui, sans-serif"; Chart.defaults.font.size = 11;
+  return true;
+}
+function mkChart(id, cfg, onClick) {
+  if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; }
+  const cv = document.getElementById(id); if (!cv) return;
+  if (!chartBase()) { cv.parentElement.innerHTML = '<div class="nx-empty"><b>Chart library did not load</b>The numbers and tables on this page still work. Check the connection and refresh.</div>'; return; }
+  cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false, animation: { duration: 250 } }, cfg.options || {});
+  cfg.options.plugins = Object.assign({ legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } } }, cfg.options.plugins || {});
+  if (onClick) {
+    cfg.options.onClick = (evt, els, chart) => { if (els && els.length) onClick(els[0].datasetIndex, els[0].index); };
+    cfg.options.onHover = (evt, els) => { evt.native.target.style.cursor = els.length ? 'pointer' : 'default'; };
+  }
+  S.charts[id] = new Chart(cv, cfg);
+}
+const COL = () => ({ green: css('--accent-green'), red: css('--accent-red'), amber: css('--accent-amber'), ai: css('--ai'), grid: css('--border') });
+function axisTitle(t) { return { display: true, text: t, color: css('--muted') }; }
+function emptyChart(id, msg) { const cv = document.getElementById(id); if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; } if (cv) cv.parentElement.innerHTML = `<div class="nx-empty"><b>No data</b>${esc(msg)}</div>`; }
+function resetCanvas(id) { // restore a canvas that emptyChart() replaced
+  const holder = document.getElementById(id)?.parentElement; return holder; }
+
+/* ============================== record views ============================== */
+const STATE_CHIP = {
+  resident: ['green', 'Registered'], visitor_active: ['green', 'Visitor, active'], visitor_expiring: ['amber', 'Visitor, expires soon'],
+  visitor_expired: ['red', 'Visitor, expired (awaiting removal)'], visitor_no_expiry: ['amber', 'Visitor, no expiry set'],
+};
+const LOG_CHIP = { registered: ['green', 'Authorized'], unregistered: ['red', 'Unregistered plate'], manual: ['amber', 'Manual override'] };
+const SESS_CHIP = { closed: ['', 'Closed'], open: ['ai', 'Open'], incomplete: ['amber', 'Incomplete (no sign-out)'], invalid: ['red', 'Invalid times'] };
+const plateCell = r => `<span class="plate">${esc(r.plate_number)}</span>`;
+const snapCell = r => { const u = safeImg(r.snapshot_url); return u ? `<img class="nx-thumb" loading="lazy" src="${u}" alt="Snapshot of ${esc(r.plate_number)}">` : '<span class="mut">No image</span>'; };
+const confCell = r => r.confidence == null ? '<span class="mut">-</span>' : `<span title="Detector confidence score, not accuracy">${(r.confidence * 100).toFixed(0)}%</span>`;
+const stChip = (map, k) => { const m = map[k] || ['', k || '-']; return chip(m[0], m[1]); };
+
+const KIND = {
+  registered_plates: {
+    title: 'Registered plates', scoped: false, sorts: { registered_at: 'registered_at', plate: 'plate', guard: 'guard', house: 'house' },
+    filters: [{ p: 'q', t: 'search', ph: 'Search plate, owner or house' }, { p: 'category', t: 'select', label: 'All categories', opts: [['resident', 'Registered vehicles'], ['visitor', 'Visitor passes']] }, { p: 'guard', t: 'guard' }],
+    cols: [['Plate', 'plate', plateCell], ['Category', null, r => esc(r.category)], ['Status', null, r => stChip(STATE_CHIP, r.state)], ['Owner', null, r => esc(r.owner_name || '-')],
+           ['House', 'house', r => esc(r.house_no || '-')], ['Registered', 'registered_at', r => dt(r.registered_at)], ['Registered by', 'guard', r => esc(r.registered_by || '-')]],
+    detail: plateDetail, empty: 'No plates are registered yet.' },
+  registrations: {
+    title: 'Plate registration audit', scoped: true, sorts: { registered_at: 'registered_at', plate: 'plate', guard: 'guard', expires: 'expires' },
+    filters: [{ p: 'q', t: 'search', ph: 'Search plate, owner or house' }, { p: 'guard', t: 'guard' }, { p: 'category', t: 'select', label: 'All categories', opts: [['resident', 'Registered vehicles'], ['visitor', 'Visitor passes']] },
+              { p: 'validity', t: 'select', label: 'Any visitor validity', opts: [['active', 'Visitor, not expired'], ['expired', 'Visitor, expired']] }],
+    cols: [['Registered', 'registered_at', r => dt(r.registered_at)], ['Plate', 'plate', plateCell], ['Registered by', 'guard', r => esc(r.registered_by || '-')],
+           ['Category', null, r => esc(r.category)], ['House', null, r => esc(r.house_no || '-')], ['Vehicle', null, r => esc([r.car_type, r.car_color].filter(Boolean).join(', ') || '-')],
+           ['Status', null, r => stChip(STATE_CHIP, r.state)], ['Expires', 'expires', r => r.is_visitor ? dt(r.expires_at) : '<span class="mut">n/a</span>']],
+    detail: plateDetail, empty: 'No plates were registered in this period.' },
+  visitors: {
+    title: 'Visitor passes', scoped: false, sorts: { expires: 'expires', plate: 'plate', registered_at: 'registered_at' },
+    filters: [{ p: 'q', t: 'search', ph: 'Search plate, owner or house' }, { p: 'state', t: 'select', label: 'All passes on file', opts: [['active', 'Active'], ['expiring', 'Expiring within 24 h'], ['expired', 'Expired, awaiting removal']] }],
+    cols: [['Plate', 'plate', plateCell], ['Status', null, r => stChip(STATE_CHIP, r.state)], ['Host house', null, r => esc(r.house_no || '-')], ['Registered by', null, r => esc(r.registered_by || '-')],
+           ['Registered', 'registered_at', r => dt(r.registered_at)], ['Expires', 'expires', r => dt(r.expires_at)]],
+    detail: plateDetail, empty: 'There are no visitor passes on file.' },
+  detections: { title: 'Recognition events', scoped: true, ...logKind(), empty: 'No recognition events match these filters.' },
+  authorized: { title: 'Authorized access events', scoped: true, ...logKind(), empty: 'No authorized events in this period.' },
+  unregistered: { title: 'Unregistered plate reads', scoped: true, ...logKind(), empty: 'No unregistered plate reads in this period.' },
+  overrides: {
+    title: 'Manual override audit', scoped: true, sorts: { time: 'time', guard: 'guard', reason: 'reason' },
+    filters: [{ p: 'guard', t: 'guard' }, { p: 'reason', t: 'reason' }],
+    cols: [['Time', 'time', r => dt(r.timestamp)], ['Operator', 'guard', r => esc(r.performed_by || '-')], ['Action requested', null, () => 'Open gate'],
+           ['Reason', 'reason', r => esc(r.reason_label || 'Not recorded')], ['Note', null, r => esc(r.note || '-')],
+           ['Gate command result', null, () => chip('', 'Not recorded', 'The Pi response is not stored, so acknowledgement and physical gate state cannot be shown.')]],
+    detail: r => kv([['Time', dt(r.timestamp)], ['Operator', r.performed_by], ['Action requested', 'Open gate (manual override)'], ['Reason', r.reason_label], ['Note', r.note],
+                     ['Gate command result', 'Not recorded - the override is logged before the request to the gate controller and the response is not stored'],
+                     ['Linked vehicle / incident', 'Not recorded - overrides are stored without a plate']]),
+    empty: 'No manual overrides in this period.' },
+  sessions: {
+    title: 'Guard sign-in sessions', scoped: true, sorts: { login: 'login', logout: 'logout', guard: 'guard' },
+    filters: [{ p: 'guard', t: 'guard' }, { p: 'session_state', t: 'select', label: 'All sessions', opts: [['closed', 'Closed (has sign-out)'], ['nologout', 'No sign-out recorded']] }],
+    cols: [['Guard', 'guard', r => esc(r.guard_name || '-')], ['Signed in', 'login', r => dt(r.login_at)], ['Signed out', 'logout', r => r.logout_at ? dt(r.logout_at) : '<span class="mut">-</span>'],
+           ['Logged-in time', null, r => r.duration_minutes == null ? '<span class="mut">Not available</span>' : dur(r.duration_minutes)], ['State', null, r => stChip(SESS_CHIP, r.state)]],
+    detail: r => kv([['Guard', r.guard_name], ['Username', r.username], ['Signed in', dt(r.login_at)], ['Signed out', r.logout_at ? dt(r.logout_at) : 'Not recorded'],
+                     ['Logged-in time', r.duration_minutes == null ? 'Not available (no valid sign-out)' : dur(r.duration_minutes)], ['Note', 'Logged-in time is not verified duty time.']]),
+    empty: 'No sessions in this period.' },
+  alerts: {
+    title: 'Repeat-visit alerts', scoped: true, sorts: { time: 'time', plate: 'plate', count: 'count' },
+    filters: [{ p: 'q', t: 'search', ph: 'Search plate' }, { p: 'review', t: 'select', label: 'All alerts', opts: [['open', 'Needs review'], ['reviewed', 'Reviewed']] }],
+    cols: [['Raised', 'time', r => dt(r.created_at)], ['Plate', 'plate', plateCell], ['What happened', 'count', r => `Read ${esc(r.occurrence_count)} times within ${esc(r.window_minutes)} min`],
+           ['Review', null, r => r.acknowledged ? chip('green', 'Reviewed') : chip('amber', 'Needs review')],
+           ['Reviewed by', null, r => r.acknowledged ? (r.acknowledged_by ? `${esc(r.acknowledged_by)}<div class="mut">${dt(r.acknowledged_at)}</div>` : '<span class="mut" title="Reviewer is recorded after migrations_audit_trail.sql is applied">Not recorded</span>') : '<span class="mut">-</span>'],
+           ['', null, r => r.acknowledged ? '' : `<button class="nx-btn" type="button" data-ack="${esc(r.id)}">Mark reviewed</button>`]],
+    detail: r => kv([['Plate', r.plate_number], ['Alert type', r.alert_type], ['Reads', r.occurrence_count + ' within ' + r.window_minutes + ' min'], ['Raised', dt(r.created_at)], ['Review', r.acknowledged ? 'Reviewed' : 'Needs review']]) + investigateBtn(r.plate_number),
+    empty: 'No alerts in this period.' },
+};
+function logKind() {
+  return {
+    sorts: { time: 'time', plate: 'plate', confidence: 'confidence' },
+    filters: [{ p: 'q', t: 'search', ph: 'Search plate' }],
+    cols: [['Time', 'time', r => dt(r.timestamp)], ['Plate', 'plate', plateCell], ['Result', null, r => stChip(LOG_CHIP, r.status)], ['Confidence', 'confidence', confCell], ['Snapshot', null, snapCell]],
+    detail: r => (safeImg(r.snapshot_url) ? `<img src="${safeImg(r.snapshot_url)}" alt="" style="max-width:320px;border-radius:6px;border:1px solid var(--border);margin-bottom:10px;display:block;">` : '') +
+      kv([['Plate', r.plate_number], ['Result', (LOG_CHIP[r.status] || [0, r.status])[1]], ['Time', dt(r.timestamp)], ['Detector confidence', r.confidence == null ? 'Not recorded' : (r.confidence * 100).toFixed(1) + '% (model score, not accuracy)']]) + investigateBtn(r.plate_number),
+  };
+}
+function kv(pairs) { return '<dl style="display:grid;grid-template-columns:170px 1fr;gap:6px 14px;margin:0;font-size:var(--fs-sm);">' + pairs.filter(p => p[1] != null && p[1] !== '').map(([k, v]) => `<dt class="mut" style="color:var(--muted)">${esc(k)}</dt><dd style="margin:0">${esc(v)}</dd>`).join('') + '</dl>'; }
+function investigateBtn(plate) { return plate && plate !== 'MANUAL' ? `<p style="margin:12px 0 0"><button class="nx-btn" type="button" data-investigate="${esc(plate)}">Investigate this plate</button></p>` : ''; }
+function plateDetail(r) {
+  const img = safeImg(r.photo_url);
+  return (img ? `<img src="${img}" alt="" style="max-width:280px;border-radius:6px;border:1px solid var(--border);margin-bottom:10px;display:block;">` : '') +
+    kv([['Plate', r.plate_number], ['Category', r.category], ['Owner', r.owner_name], ['House', r.house_no], ['Vehicle', [r.car_type, r.car_color].filter(Boolean).join(', ')], ['Registered', dt(r.registered_at)],
+        ['Registered by', r.registered_by], ['Added via', r.created_via], ['Expires', r.is_visitor ? dt(r.expires_at) : '']]) + investigateBtn(r.plate_number);
+}
+
+class RecordView {
+  constructor(root, kind, preset = {}, opts = {}) {
+    this.root = root; this.kind = kind; this.cfg = KIND[kind]; this.opts = opts;
+    this.preset = Object.assign({}, preset); this.f = {}; this.page = 1; this.size = 25; this.sort = null; this.dir = null;
+    this.data = null; this.token = 0; this.expanded = null; this.timer = null;
+    this.build(); this.load();
+  }
+  build() {
+    const c = this.cfg;
+    this.root.innerHTML = `<div class="nx-drawer-filters" data-r="filters"></div><div class="nx-drawer-body" style="padding-top:8px" data-r="body"></div>`;
+    if (!this.opts.inDrawer) { this.root.firstElementChild.style.cssText = 'padding:0 0 12px;border:0;background:none;'; this.root.lastElementChild.style.cssText = 'padding:0;overflow:visible'; }
+    const fb = $('[data-r=filters]', this.root);
+    c.filters.forEach(fl => {
+      let el;
+      if (fl.t === 'search') { el = document.createElement('input'); el.className = 'nx-input'; el.type = 'search'; el.placeholder = fl.ph; el.style.minWidth = '220px'; el.setAttribute('aria-label', fl.ph);
+        el.addEventListener('input', () => { clearTimeout(this.timer); this.timer = setTimeout(() => { this.f[fl.p] = el.value.trim(); this.page = 1; this.load(); }, 300); }); }
+      else {
+        el = document.createElement('select'); el.className = 'nx-select';
+        let opts = fl.opts;
+        if (fl.t === 'guard') { opts = (S.meta?.guards || []).map(g => [g.name, g.name + (g.active ? '' : ' (inactive)')]); fl.label = 'All guards'; }
+        if (fl.t === 'reason') { opts = (S.meta?.override_reasons || []).map(r => [r.value, r.label]); fl.label = 'All reasons'; }
+        el.innerHTML = `<option value="">${esc(fl.label)}</option>` + (opts || []).map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join('');
+        el.setAttribute('aria-label', fl.label);
+        el.addEventListener('change', () => { this.f[fl.p] = el.value; this.page = 1; this.load(); });
+      }
+      if (this.preset[fl.p]) { el.value = this.preset[fl.p]; this.f[fl.p] = this.preset[fl.p]; }
+      fb.appendChild(el);
+    });
+    this.chips = document.createElement('span'); this.chips.style.cssText = 'display:inline-flex;gap:6px;flex-wrap:wrap'; fb.appendChild(this.chips);
+    this.renderChips();
+  }
+  presetParams() { const o = {}; ['day', 'hour', 'conf_min', 'conf_max'].forEach(k => { if (this.preset[k] != null && this.preset[k] !== '') o[k] = this.preset[k]; }); return o; }
+  renderChips() {
+    const labels = { day: v => 'Day ' + dOnly(v), hour: v => 'Hour ' + hh(+v) + '-' + hh((+v + 1) % 24), conf_min: v => 'Confidence from ' + (v * 100).toFixed(0) + '%', conf_max: v => 'Confidence below ' + Math.min(100, v * 100).toFixed(0) + '%' };
+    this.chips.innerHTML = Object.entries(this.presetParams()).map(([k, v]) => `<button type="button" class="nx-chip ai" data-rm="${k}" title="Remove this filter" style="border:0;cursor:pointer">${esc(labels[k](v))} &times;</button>`).join('');
+    $$('[data-rm]', this.chips).forEach(b => b.addEventListener('click', () => { delete this.preset[b.dataset.rm]; if (b.dataset.rm === 'conf_min') delete this.preset.conf_max; this.renderChips(); this.page = 1; this.load(); }));
+  }
+  params(withPage = true) {
+    const p = Object.assign({}, this.cfg.scoped ? (this.preset.day ? {} : rangeParams()) : {}, this.presetParams(), this.f);
+    if (this.sort) { p.sort = this.sort; p.dir = this.dir; }
+    if (withPage) { p.page = this.page; p.page_size = this.size; }
+    return p;
+  }
+  exportUrl() { return `/api/intel/export/${this.kind}.csv?` + new URLSearchParams(Object.entries(this.params(false)).filter(([, v]) => v !== '' && v != null)).toString(); }
+  async load() {
+    const tok = ++this.token, body = $('[data-r=body]', this.root);
+    body.innerHTML = '<div class="nx-skel"></div><div class="nx-skel"></div><div class="nx-skel"></div><div class="nx-skel"></div>';
+    if (this.opts.onParams) this.opts.onParams(this);
+    try {
+      const d = await api('/api/intel/records/' + this.kind, this.params());
+      if (tok !== this.token) return;
+      this.data = d; this.render(); if (this.opts.onLoaded) this.opts.onLoaded(this);
+    } catch (e) {
+      if (tok !== this.token) return;
+      body.innerHTML = `<div class="nx-error" role="alert">${esc(e.message)} <button class="nx-btn" type="button" data-retry style="margin-left:8px">Retry</button></div>`;
+      $('[data-retry]', body).addEventListener('click', () => this.load());
+    }
+  }
+  render() {
+    const d = this.data, c = this.cfg, body = $('[data-r=body]', this.root);
+    if (!d.items.length) { body.innerHTML = `<div class="nx-empty"><b>${esc(c.empty)}</b>${c.scoped ? 'Try a wider date range or clear a filter.' : 'Clear a filter to see more.'}</div>`; return; }
+    const arrow = k => this.sort === k ? `<span class="arr">${this.dir === 'asc' ? '&uarr;' : '&darr;'}</span>` : '';
+    const head = c.cols.map(([l, k]) => k ? `<th class="sortable" data-sort="${k}" scope="col" aria-sort="${this.sort === k ? (this.dir === 'asc' ? 'ascending' : 'descending') : 'none'}" tabindex="0">${esc(l)}${arrow(k)}</th>` : `<th scope="col">${esc(l)}</th>`).join('');
+    const rows = d.items.map((r, i) => `<tr class="row-click" data-i="${i}" tabindex="0">${c.cols.map(([, , f]) => `<td>${f(r)}</td>`).join('')}</tr>` +
+      (this.expanded === i ? `<tr><td colspan="${c.cols.length}" style="background:var(--bg)">${c.detail(r)}</td></tr>` : '')).join('');
+    const from = (d.page - 1) * d.page_size + 1, to = from + d.items.length - 1;
+    body.innerHTML = `${d.truncated ? '<div class="nx-note warn">Very large result: the hour filter inspected only the first ' + (S.meta?.series_row_cap || 20000) + ' events in range.</div>' : ''}
+      <div class="nx-table-wrap"><table class="nx-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="nx-pager"><span>${from.toLocaleString()}-${to.toLocaleString()} of ${d.total.toLocaleString()}</span>
+        <span style="display:flex;gap:10px;align-items:center"><label class="nx-meta">Rows <select class="nx-select" data-size>${[25, 50, 100].map(n => `<option ${n === this.size ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <span class="btns"><button class="nx-btn" type="button" data-prev ${d.page <= 1 ? 'disabled' : ''}>Previous</button><span style="align-self:center">Page ${d.page} of ${d.pages}</span><button class="nx-btn" type="button" data-next ${d.page >= d.pages ? 'disabled' : ''}>Next</button></span></span></div>`;
+    $$('th[data-sort]', body).forEach(th => { const go = () => { const k = th.dataset.sort; if (this.sort === k) this.dir = this.dir === 'asc' ? 'desc' : 'asc'; else { this.sort = k; this.dir = 'desc'; } this.page = 1; this.load(); };
+      th.addEventListener('click', go); th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); });
+    $$('tr.row-click', body).forEach(tr => { const open = e => { if (e.target.closest('button,a')) return; const i = +tr.dataset.i; this.expanded = this.expanded === i ? null : i; this.render(); };
+      tr.addEventListener('click', open); tr.addEventListener('keydown', e => { if (e.key === 'Enter') open(e); }); });
+    $('[data-prev]', body)?.addEventListener('click', () => { this.page--; this.expanded = null; this.load(); });
+    $('[data-next]', body)?.addEventListener('click', () => { this.page++; this.expanded = null; this.load(); });
+    $('[data-size]', body)?.addEventListener('change', e => { this.size = +e.target.value; this.page = 1; this.expanded = null; this.load(); });
+    $$('[data-investigate]', body).forEach(b => b.addEventListener('click', () => { closeDrawer(); runInvestigation(b.dataset.investigate); selectTab('investigation'); }));
+    $$('[data-ack]', body).forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Mark this alert as reviewed? Your name and the time will be recorded where the audit migration is applied.')) return;
+      b.disabled = true;
+      try { const r = await fetch('/api/alerts/' + encodeURIComponent(b.dataset.ack) + '/acknowledge', { method: 'POST' }); if (!r.ok) throw new Error('Could not mark the alert reviewed (' + r.status + ')'); await this.load(); S.loaded = {}; refreshSummaryQuiet(); }
+      catch (e) { b.disabled = false; alert(e.message); }
+    }));
+  }
+}
+
+/* ============================== drawer ============================== */
+let drawerRV = null, lastFocus = null;
+function openDrawer(kind, preset = {}, titleOverride) {
+  lastFocus = document.activeElement;
+  const c = KIND[kind];
+  $('#drawer-title').textContent = titleOverride || c.title;
+  $('#drawer-mount').innerHTML = '';
+  const mount = document.createElement('div'); mount.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0'; $('#drawer-mount').appendChild(mount);
+  drawerRV = new RecordView(mount, kind, preset, { inDrawer: true, onParams: rv => { $('#drawer-export').href = rv.exportUrl(); },
+    onLoaded: rv => { $('#drawer-sub').textContent = (c.scoped ? (rv.preset.day ? 'Day: ' + dOnly(rv.preset.day) : rangeLabel()) : 'Current records') + ' \u00b7 ' + rv.data.total.toLocaleString() + ' record' + (rv.data.total === 1 ? '' : 's'); } });
+  $('#drawer-sub').textContent = c.scoped ? rangeLabel() : 'Current records';
+  $('#scrim').classList.add('show'); $('#drawer').classList.add('show'); $('#drawer').setAttribute('aria-hidden', 'false');
+  setTimeout(() => $('#drawer-close').focus(), 30);
+}
+function closeDrawer() {
+  $('#scrim').classList.remove('show'); $('#drawer').classList.remove('show'); $('#drawer').setAttribute('aria-hidden', 'true'); drawerRV = null;
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+$('#drawer-close').addEventListener('click', closeDrawer); $('#scrim').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#drawer').classList.contains('show')) closeDrawer(); });
+
+/* ============================== range + tabs ============================== */
+function rangeLabel() { const r = S.rangeInfo; return r ? (r.from === r.to ? dOnly(r.from) : dOnly(r.from) + ' to ' + dOnly(r.to)) + ' (' + r.tz + ')' : 'Loading range...'; }
+function setRangeUI() { $$('#range-seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === S.range ? 'true' : 'false')); $('#custom-range').classList.toggle('show', S.range === 'custom'); $('#range-label').textContent = rangeLabel(); }
+$$('#range-seg button').forEach(b => b.addEventListener('click', () => {
+  S.range = b.dataset.r; setRangeUI();
+  if (S.range !== 'custom') { S.loaded = {}; loadSection(S.section); }
+}));
+(function initDates() { const t = new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date()); $('#d-to').max = t; $('#d-from').max = t; $('#d-to').value = t; })();
+$('#d-apply').addEventListener('click', () => {
+  const f = $('#d-from').value, t = $('#d-to').value;
+  if (!f || !t) return alert('Choose both a start and an end date.');
+  if (f > t) return alert('The start date must be on or before the end date.');
+  if ((new Date(t) - new Date(f)) / 864e5 + 1 > 366) return alert('Choose a range of 366 days or fewer.');
+  S.from = f; S.to = t; S.loaded = {}; loadSection(S.section);
+});
+$('#refresh-btn').addEventListener('click', () => { S.loaded = {}; loadSection(S.section); });
+
+function selectTab(s) {
+  if ($('#drawer').classList.contains('show')) closeDrawer();
+  S.section = s;
+  $$('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.s === s ? 'true' : 'false'));
+  $$('.nx-section').forEach(x => x.classList.toggle('show', x.id === 'sec-' + s));
+  if (location.hash !== '#' + s) history.replaceState(null, '', '#' + s);
+  loadSection(s);
+}
+$$('#tabs button').forEach(b => { b.addEventListener('click', () => selectTab(b.dataset.s)); b.addEventListener('keydown', e => {
+  const t = $$('#tabs button'), i = t.indexOf(b); if (e.key === 'ArrowRight') t[(i + 1) % t.length].focus(); if (e.key === 'ArrowLeft') t[(i - 1 + t.length) % t.length].focus(); }); });
+
+/* ============================== KPI cards ============================== */
+function kpi(o) {
+  if (!o.kind) return `<div class="nx-kpi na"><div class="bar"></div><div class="v">${esc(o.value)}</div><div class="l">${esc(o.label)}</div><div class="s">${esc(o.sub || '')}</div></div>`;
+  return `<button type="button" class="nx-kpi ${o.tone || ''}" data-open="${o.kind}" data-preset='${esc(JSON.stringify(o.preset || {}))}' aria-label="${esc(o.label)}: ${esc(o.value)}. Open records"><div class="bar"></div><div class="v">${esc(Number(o.value).toLocaleString())}${ICON_GO}</div><div class="l">${esc(o.label)}</div><div class="s">${esc(o.sub || '')}</div></button>`;
+}
+function bindKpis(root) { $$('[data-open]', root).forEach(b => b.addEventListener('click', () => openDrawer(b.dataset.open, JSON.parse(b.dataset.preset || '{}')))); }
+function paintKpis(el, list) { el.innerHTML = list.map(kpi).join(''); bindKpis(el); }
+
+/* ============================== section loaders ============================== */
+function skeleton(el) { el.innerHTML = '<div class="nx-skel"></div><div class="nx-skel" style="width:70%"></div>'; }
+function fail(el, e) { el.innerHTML = `<div class="nx-error" role="alert">${esc(e.message)}</div>`; }
+function stamp() { $('#gen-meta').textContent = 'Updated ' + fmtDT.format(new Date()) + ' MYT'; }
+async function ensureSummary() { const key = rangeKey(); if (S.summary && S.summary._key === key) return S.summary; const s = await api('/api/intel/summary', rangeParams()); s._key = key; S.summary = s; S.rangeInfo = s.range; setRangeUI(); return s; }
+async function ensureTraffic() { const key = rangeKey(); if (S.traffic && S.traffic._key === key) return S.traffic; const t = await api('/api/intel/traffic', rangeParams()); t._key = key; S.traffic = t; return t; }
+async function refreshSummaryQuiet() { S.summary = null; try { await ensureSummary(); if (S.section === 'overview') loadOverview(); } catch (e) {} }
+
+async function loadSection(s) {
+  const key = rangeKey();
+  if (S.loaded[s] === key && s !== 'investigation') return;
+  S.loaded[s] = key;
+  try {
+    if (!S.meta) S.meta = await api('/api/intel/meta');
+    await ({ overview: loadOverview, traffic: loadTraffic, access: loadAccess, ai: loadAI, investigation: loadInvestigation, guards: loadGuards, reliability: loadReliability, visitors: loadVisitors, incidents: loadIncidents })[s]();
+    stamp();
+  } catch (e) { S.loaded[s] = null; const sec = $('#sec-' + s); let box = $('.nx-error', sec); if (!box) { box = document.createElement('div'); box.className = 'nx-error'; box.setAttribute('role', 'alert'); sec.prepend(box); } box.textContent = e.message; }
+}
+function clearErr(s) { $$('#sec-' + s + ' > .nx-error').forEach(x => x.remove()); }
+function ensureCanvas(id, tall) { const w = document.getElementById(id); if (w) return w; return null; }
+function restoreCanvases(sectionId) { // charts replaced by an empty-state need their canvas back
+  $$('#' + sectionId + ' .nx-chart').forEach(h => { if (!h.querySelector('canvas')) { h.innerHTML = `<canvas id="${h.dataset.cv}"></canvas>`; } }); }
+$$('.nx-chart').forEach(h => { const c = h.querySelector('canvas'); if (c) h.dataset.cv = c.id; });
+
+function availabilityTable(keys) {
+  const rows = (S.meta.availability || []).filter(a => !keys || keys.includes(a.key));
+  return `<table class="nx-table"><thead><tr><th>Metric</th><th>Status</th><th>Why</th><th>Smallest change to record it</th></tr></thead><tbody>${rows.map(a => `<tr><td><b>${esc(a.label)}</b></td><td>${a.recorded ? chip('green', 'Recorded') : chip('', 'Not recorded')}</td><td class="mut">${esc(a.why)}</td><td class="mut">${esc(a.fix || '-')}</td></tr>`).join('')}</tbody></table>`;
+}
+
+async function loadOverview() {
+  clearErr('overview'); restoreCanvases('sec-overview');
+  const k = (await ensureSummary()).kpis, t = await ensureTraffic();
+  const pr = await api('/api/presence').catch(() => null);
+  const GUARD_HIDDEN = ['registered_plates', 'registrations', 'sessions'];
+  paintKpis($('#kpi-grid'), [
+    { kind: 'registered_plates', value: k.registered_plates, label: 'Registered plates', sub: 'Plates currently on file (all time)', tone: 'ai' },
+    { kind: 'registrations', value: k.registrations, label: 'Plates registered', sub: 'Added by guards in this period', tone: 'ai' },
+    { kind: 'registrations', preset: { category: 'visitor' }, value: k.visitor_registrations, label: 'Visitor registrations', sub: 'Visitor passes created in this period' },
+    { kind: 'detections', value: k.detections, label: 'Recognition events', sub: 'Logged plate reads (not camera frames)', tone: 'ai' },
+    { kind: 'authorized', value: k.authorized, label: 'Authorized access', sub: 'Registered plate, gate signal sent', tone: 'green' },
+    { kind: 'unregistered', value: k.unregistered, label: 'Unregistered plate reads', sub: 'No automatic gate signal sent', tone: 'red' },
+    { kind: 'overrides', value: k.overrides, label: 'Manual overrides', sub: 'Gate opened by a guard', tone: 'amber' },
+    { kind: 'sessions', value: k.sessions, label: 'Guard sign-ins', sub: k.sessions_no_logout + ' with no sign-out recorded' },
+    { kind: 'alerts', value: k.alerts, label: 'Repeat-visit alerts', sub: k.alerts_open + ' still need review', tone: k.alerts_open ? 'amber' : '' },
+    { kind: 'visitors', preset: { state: 'active' }, value: k.visitors_active, label: 'Active visitor passes', sub: k.visitors_expiring + ' expire within 24 h' },
+    { value: 'Not recorded', label: 'Gate command outcome', sub: 'The gate controller response is not stored, so open signals cannot be confirmed from history.' },
+    pr ? { value: pr.inside, label: 'Vehicles inside (estimate)', sub: pr.entries + ' in, ' + pr.exits + ' out since the last reset. The exit sensor cannot read plates.', tone: 'ai' }
+       : { value: 'Not available', label: 'Vehicles inside', sub: 'Run migrations_security_rules.sql to enable entry/exit tracking.' },
+  ].filter(x => IS_HEAD || !GUARD_HIDDEN.includes(x.kind)));
+  // stacked daily chart; datasetIndex -> record kind
+  const days = t.daily, C = COL(), kinds = ['authorized', 'unregistered', 'overrides'];
+  $('#daily-hint').textContent = t.truncated ? `Chart built from the first ${t.row_cap.toLocaleString()} events in range; extend the range carefully.` : `${t.scanned_rows.toLocaleString()} events scanned.`;
+  if (!days.length || !t.scanned_rows) return emptyChart('ch-daily', 'No events were logged in this period.');
+  mkChart('ch-daily', { type: 'bar', data: { labels: days.map(d => dOnly(d.date).slice(0, 6)), datasets: [
+      { label: 'Authorized', data: days.map(d => d.authorized), backgroundColor: C.green, stack: 's' }, { label: 'Unregistered plate', data: days.map(d => d.unregistered), backgroundColor: C.red, stack: 's' }, { label: 'Manual override', data: days.map(d => d.manual), backgroundColor: C.amber, stack: 's' }] },
+    options: { scales: { x: { stacked: true, title: axisTitle('Date (Malaysia time)'), grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Logged events') } },
+               plugins: { tooltip: { callbacks: { footer: i => 'Total ' + days[i[0].dataIndex].total } } } } },
+    (ds, i) => openDrawer(kinds[ds], { day: days[i].date }));
+  $('#ov-availability').innerHTML = `<p class="nx-hint" style="margin-top:0">Some metrics are not recorded by the current system, so they are shown as <b>Not recorded</b> instead of estimated. Open <a href="#reliability" onclick="selectTab('reliability');return false;" style="color:var(--ai)">System reliability</a> for the full list and the smallest change that would capture each one.</p>`;
+}
+
+async function loadTraffic() {
+  clearErr('traffic'); restoreCanvases('sec-traffic');
+  const t = await ensureTraffic(), C = COL();
+  if (!t.scanned_rows) { emptyChart('ch-hourly', 'No events in this period.'); emptyChart('ch-detect-line', 'No events in this period.'); $('#peak-list').innerHTML = '<div class="nx-empty"><b>No peak periods</b>No recognition events in this period.</div>'; return; }
+  const kinds = ['authorized', 'unregistered', 'overrides'];
+  mkChart('ch-hourly', { type: 'bar', data: { labels: t.hourly.map(h => hh(h.hour)), datasets: [
+      { label: 'Authorized', data: t.hourly.map(h => h.authorized), backgroundColor: C.green }, { label: 'Unregistered plate', data: t.hourly.map(h => h.unregistered), backgroundColor: C.red }, { label: 'Manual override', data: t.hourly.map(h => h.manual), backgroundColor: C.amber }] },
+    options: { scales: { x: { title: axisTitle('Hour of day (Malaysia time)'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Logged events') } } } },
+    (ds, i) => openDrawer(kinds[ds], { hour: i }));
+  mkChart('ch-detect-line', { type: 'line', data: { labels: t.daily.map(d => dOnly(d.date).slice(0, 6)), datasets: [{ label: 'Recognition events', data: t.daily.map(d => d.authorized + d.unregistered), borderColor: C.ai, backgroundColor: C.ai + '33', fill: true, tension: .25, pointRadius: 3 }] },
+    options: { scales: { x: { title: axisTitle('Date (Malaysia time)'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Events (authorized + unregistered)') } }, plugins: { legend: { display: false } } } },
+    (ds, i) => openDrawer('detections', { day: t.daily[i].date }));
+  $('#peak-list').innerHTML = t.peak_hours.length ? `<div style="display:flex;gap:12px;flex-wrap:wrap">${t.peak_hours.map((p, i) => `<button type="button" class="nx-kpi" style="width:auto;min-width:200px" data-open="detections" data-preset='${esc(JSON.stringify({ hour: p.hour }))}'><div class="v">${hh(p.hour)}-${hh((p.hour + 1) % 24)}</div><div class="l">${i === 0 ? 'Busiest hour' : 'Next busiest'}</div><div class="s">${p.detections.toLocaleString()} recognition events in this period</div></button>`).join('')}</div>` : '<div class="nx-empty"><b>No peak periods</b>No recognition events in this period.</div>';
+  bindKpis($('#peak-list'));
+}
+
+async function loadAccess() {
+  clearErr('access'); restoreCanvases('sec-access');
+  const k = (await ensureSummary()).kpis, t = await ensureTraffic(), C = COL();
+  paintKpis($('#access-kpis'), [
+    { kind: 'authorized', value: k.authorized, label: 'Authorized access', sub: 'Registered plate read', tone: 'green' },
+    { kind: 'unregistered', value: k.unregistered, label: 'Unregistered plate reads', sub: 'Plate not on the registered list', tone: 'red' },
+    { kind: 'overrides', value: k.overrides, label: 'Manual overrides', sub: 'Gate opened by a guard with a reason', tone: 'amber' },
+    { kind: 'alerts', preset: { review: 'open' }, value: k.alerts_open, label: 'Alerts needing review', sub: 'Repeat reads awaiting a reviewer', tone: k.alerts_open ? 'amber' : '' },
+    { value: 'Not recorded', label: 'Uncertain recognition', sub: 'Low-quality reads are not stored as their own category.' },
+    { value: 'Not recorded', label: 'Expired-pass rejections', sub: 'A removed pass looks like any unregistered plate.' },
+  ]);
+  if (!t.scanned_rows) emptyChart('ch-access', 'No events in this period.');
+  else mkChart('ch-access', { type: 'line', data: { labels: t.daily.map(d => dOnly(d.date).slice(0, 6)), datasets: [
+      { label: 'Authorized', data: t.daily.map(d => d.authorized), borderColor: C.green, tension: .25, pointRadius: 3 }, { label: 'Unregistered plate', data: t.daily.map(d => d.unregistered), borderColor: C.red, tension: .25, pointRadius: 3 }, { label: 'Manual override', data: t.daily.map(d => d.manual), borderColor: C.amber, tension: .25, pointRadius: 3 }] },
+    options: { scales: { x: { title: axisTitle('Date (Malaysia time)'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Logged events') } } } },
+    (ds, i) => openDrawer(['authorized', 'unregistered', 'overrides'][ds], { day: t.daily[i].date }));
+  const rs = t.override_reasons;
+  if (!rs.length) emptyChart('ch-reasons', 'No manual overrides in this period.');
+  else mkChart('ch-reasons', { type: 'bar', data: { labels: rs.map(r => r.label), datasets: [{ label: 'Overrides', data: rs.map(r => r.count), backgroundColor: C.amber }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Overrides') }, y: { grid: { display: false } } } } },
+    (ds, i) => openDrawer('overrides', rs[i].code ? { reason: rs[i].code } : {}));
+}
+
+async function loadAI() {
+  clearErr('ai'); restoreCanvases('sec-ai');
+  const d = await api('/api/intel/recognition', rangeParams()), C = COL();
+  S.rangeInfo = d.range; setRangeUI();
+  const st = d.stats;
+  paintKpis($('#ai-kpis'), [
+    { kind: 'detections', value: d.logged_reads, label: 'Logged plate reads', sub: 'Reads that passed voting and were stored', tone: 'ai' },
+    { kind: 'detections', preset: { conf_max: 0.5 }, value: st ? st.below_050 : 0, label: 'Reads below 50% confidence', sub: 'Reporting threshold for this view, not a model setting' },
+    { value: st ? (st.mean * 100).toFixed(0) + '%' : '-', label: 'Mean detector confidence', sub: st ? 'Median ' + (st.median * 100).toFixed(0) + '%, range ' + (st.min * 100).toFixed(0) + '-' + (st.max * 100).toFixed(0) + '%' : 'No confidence values in this period' },
+    { value: 'Not measured', label: 'Recognition accuracy', sub: 'Needs plate text verified by a person for a sample of reads.' },
+  ]);
+  $('#conf-source').textContent = d.score_source;
+  if (!d.reads_with_confidence) { emptyChart('ch-conf', 'No reads with a confidence value in this period.'); emptyChart('ch-conf-trend', 'No reads with a confidence value in this period.'); }
+  else {
+    mkChart('ch-conf', { type: 'bar', data: { labels: d.bins.map(b => (b.min * 100).toFixed(0) + '-' + Math.min(100, b.max * 100).toFixed(0) + '%'), datasets: [{ label: 'Reads', data: d.bins.map(b => b.count), backgroundColor: C.ai }] },
+      options: { plugins: { legend: { display: false } }, scales: { x: { title: axisTitle('Detector confidence'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Logged reads') } } } },
+      (ds, i) => openDrawer('detections', { conf_min: d.bins[i].min, conf_max: d.bins[i].max }));
+    mkChart('ch-conf-trend', { type: 'line', data: { labels: d.daily_mean.map(x => dOnly(x.date).slice(0, 6)), datasets: [{ label: 'Mean confidence', data: d.daily_mean.map(x => +(x.mean * 100).toFixed(1)), borderColor: C.ai, tension: .25, pointRadius: 3 }] },
+      options: { plugins: { legend: { display: false } }, scales: { x: { title: axisTitle('Date (Malaysia time)'), grid: { display: false } }, y: { min: 0, max: 100, title: axisTitle('Mean confidence (%)') } } } });
+  }
+  $('#ai-missing').innerHTML = `<div class="nx-table-wrap">${availabilityTable(['failed_reads', 'latency', 'ocr_conf'])}</div><p class="nx-hint">Accuracy needs ground truth: a guard confirms the real plate for a sample of snapshots, then predictions are compared with those labels. Until then no accuracy figure is shown.</p>`;
+}
+
+async function loadInvestigation() { clearErr('investigation'); }
+async function runInvestigation(plate) {
+  if (plate) $('#inv-plate').value = plate;
+  const p = $('#inv-plate').value.trim(), out = $('#inv-result');
+  if (p.replace(/[^A-Za-z0-9]/g, '').length < 2) { out.innerHTML = '<div class="nx-empty"><b>Enter at least 2 characters</b>Type all or part of a plate number.</div>'; return; }
+  skeleton(out);
+  const types = $$('#inv-types input:checked').map(i => i.value).join(',');
+  const fmtISO = d => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(d);
+  const params = IS_HEAD
+    ? Object.assign({ plate: p, types }, $('#inv-scope').value === 'all' ? { range: 'all' } : rangeParams())
+    : { plate: p, types, range: 'custom', from: fmtISO(new Date(Date.now() - 2 * 86400000)), to: fmtISO(new Date()) };  // guards: last 3 days, every lookup is recorded
+  try {
+    const v = await api('/api/intel/vehicle', params), r = v.registration;
+    const counts = v.counts || {};
+    const regCard = r ? `<div class="panel" style="margin-bottom:16px"><div class="panel-header"><span class="panel-title">Registration on file</span>${stChip(STATE_CHIP, r.state)}</div><div class="panel-body">${plateDetail(r).replace(/<p style="margin:12px 0 0">.*<\/p>/, '')}</div></div>`
+      : `<div class="nx-note warn"><div>${esc(v.registration_note)}</div></div>`;
+    const evHtml = e => {
+      const tone = e.type === 'detection' ? ((LOG_CHIP[e.status] || ['', ''])[0] || 'ai') : e.type === 'override_nearby' ? 'amber' : e.type === 'alert' ? 'amber' : 'ai';
+      let body = `<div class="h">${esc(e.title)}</div>`;
+      if (e.type === 'detection') body += `<div class="mut" style="color:var(--muted)">Detector confidence ${e.confidence == null ? 'not recorded' : (e.confidence * 100).toFixed(0) + '%'}</div>` + (safeImg(e.snapshot_url) ? `<img loading="lazy" src="${safeImg(e.snapshot_url)}" alt="Snapshot">` : '');
+      if (e.type === 'registration') body += `<div style="color:var(--muted)">By ${esc(e.by || 'unknown')}${e.expires_at ? ' \u00b7 expires ' + dt(e.expires_at) : ''}</div>`;
+      if (e.type === 'alert') body += `<div style="color:var(--muted)">${e.review_state === 'reviewed' ? 'Reviewed' + (e.by ? ' by ' + esc(e.by) : '') : 'Needs review'}</div>`;
+      if (e.type === 'override_nearby') body += `<div style="color:var(--muted)">Reason: ${esc(e.reason || 'not recorded')}${e.note ? ' \u00b7 ' + esc(e.note) : ''}</div><div class="caveat">${esc(e.caveat)}</div>`;
+      return `<li><div class="t">${dt(e.time)}</div><span class="d ${tone}"></span><div class="c">${body}</div></li>`;
+    };
+    const PAGE_EV = 40;
+    const evs = v.events.slice(0, PAGE_EV).map(evHtml).join('');
+    out.innerHTML = `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px"><span class="plate" style="font-family:var(--mono);font-weight:600;font-size:20px;letter-spacing:.06em">${esc(v.plate)}</span>
+        ${Object.entries({ detection: 'recognition events', registration: 'registration', alert: 'alerts', override_nearby: 'nearby overrides' }).filter(([k]) => counts[k]).map(([k, l]) => chip('', counts[k] + ' ' + l)).join('')}
+        <span class="nx-meta">${v.range.range === 'all' ? 'All recorded history' : dOnly(v.range.from) + ' to ' + dOnly(v.range.to)} (${esc(v.range.tz)})</span>
+        <button class="nx-btn" type="button" id="inv-table-btn" style="margin-left:auto">Open reads as a table</button></div>
+      ${regCard}${v.detections_truncated ? '<div class="nx-note warn"><div>Showing the 300 most recent recognition events; use the date range to look further back.</div></div>' : ''}
+      ${v.events.length ? `<ol class="nx-tl" id="inv-tl">${evs}</ol><div id="inv-more" style="text-align:center;margin-top:6px"></div>` : '<div class="nx-empty"><b>No recorded activity</b>Nothing matches this plate in the chosen period and event types.</div>'}`;
+    $('#inv-table-btn').addEventListener('click', () => openDrawer('detections', { q: v.plate }));
+    let shown = Math.min(PAGE_EV, v.events.length); const more = $('#inv-more');
+    const paintMore = () => { if (!more) return; if (shown >= v.events.length) { more.innerHTML = v.events.length > PAGE_EV ? `<span class="nx-meta">All ${v.events.length} events shown</span>` : ''; return; }
+      more.innerHTML = `<button class="nx-btn" type="button" id="inv-more-btn">Show ${Math.min(PAGE_EV, v.events.length - shown)} more (${shown} of ${v.events.length} shown)</button>`;
+      $('#inv-more-btn').addEventListener('click', () => { $('#inv-tl').insertAdjacentHTML('beforeend', v.events.slice(shown, shown + PAGE_EV).map(evHtml).join('')); shown += PAGE_EV; paintMore(); }); };
+    paintMore();
+  } catch (e) { fail(out, e); }
+}
+$('#inv-form').addEventListener('submit', e => { e.preventDefault(); runInvestigation(); });
+
+async function loadGuards() {
+  clearErr('guards'); restoreCanvases('sec-guards');
+  const d = await api('/api/intel/guards', rangeParams()), C = COL();
+  S.rangeInfo = d.range; setRangeUI();
+  const tot = d.guards.reduce((a, g) => ({ s: a.s + g.sessions, r: a.r + g.registrations, o: a.o + g.overrides }), { s: 0, r: 0, o: 0 });
+  paintKpis($('#guard-kpis'), [
+    { kind: 'sessions', value: tot.s, label: 'Sign-in sessions', sub: d.no_logout_total + ' with no sign-out recorded' },
+    { kind: 'registrations', value: tot.r, label: 'Plates registered', sub: 'Registration audit' },
+    { kind: 'overrides', value: tot.o, label: 'Manual overrides', sub: 'Override audit', tone: 'amber' },
+    { value: 'Not recorded', label: 'Failed sign-in attempts', sub: 'Only successful sign-ins are stored.' },
+  ]);
+  $('#guard-table').innerHTML = d.guards.length ? `<table class="nx-table"><thead><tr><th>Guard</th><th class="r">Sessions</th><th class="r">Logged-in time (closed sessions)</th><th class="r">No sign-out</th><th class="r">Registrations</th><th class="r">Overrides</th><th>Last sign-in</th><th>Records</th></tr></thead><tbody>${d.guards.map(g => `<tr>
+      <td><b>${esc(g.guard)}</b></td><td class="r">${g.sessions}</td><td class="r">${dur(g.logged_in_minutes)}</td><td class="r">${g.open_sessions + g.incomplete_sessions}${g.incomplete_sessions ? ` <span class="mut">(${g.incomplete_sessions} incomplete)</span>` : ''}</td>
+      <td class="r">${g.registrations}</td><td class="r">${g.overrides}</td><td>${dt(g.last_login)}</td>
+      <td style="white-space:nowrap"><button class="nx-btn" type="button" data-g="${esc(g.guard)}" data-k="sessions">Sessions</button> <button class="nx-btn" type="button" data-g="${esc(g.guard)}" data-k="registrations">Registrations</button> <button class="nx-btn" type="button" data-g="${esc(g.guard)}" data-k="overrides">Overrides</button></td></tr>`).join('')}</tbody></table>`
+    : '<div class="nx-empty"><b>No guard activity in this period</b>Sign-ins, registrations and overrides will appear here.</div>';
+  $$('#guard-table [data-g]').forEach(b => b.addEventListener('click', () => openDrawer(b.dataset.k, { guard: b.dataset.g })));
+  mkChart('ch-sess-day', { type: 'bar', data: { labels: d.sessions_by_day.map(x => dOnly(x.date).slice(0, 6)), datasets: [{ label: 'Sign-ins', data: d.sessions_by_day.map(x => x.sessions), backgroundColor: C.ai }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { title: axisTitle('Date (Malaysia time)'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Sign-ins') } } } },
+    (ds, i) => openDrawer('sessions', { day: d.sessions_by_day[i].date }));
+  mkChart('ch-sess-hour', { type: 'bar', data: { labels: d.logins_by_hour.map(x => hh(x.hour)), datasets: [{ label: 'Sign-ins', data: d.logins_by_hour.map(x => x.sessions), backgroundColor: C.ai }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { title: axisTitle('Hour of day (Malaysia time)'), grid: { display: false }, ticks: { maxTicksLimit: 12 } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Sign-ins') } } } });
+  mkChart('ch-sess-dur', { type: 'bar', data: { labels: d.duration_distribution.map(x => x.label), datasets: [{ label: 'Sessions', data: d.duration_distribution.map(x => x.count), backgroundColor: C.ai }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { title: axisTitle('Time between sign-in and sign-out'), grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 }, title: axisTitle('Closed sessions') } } } });
+  if (d.truncated) $('#guard-table').insertAdjacentHTML('afterbegin', '<div class="nx-note warn">This period has more records than the safe scan limit; totals may be understated. Choose a shorter range.</div>');
+}
+
+async function loadReliability() {
+  clearErr('reliability');
+  const r = await api('/api/intel/reliability'), l = r.live;
+  const tile = (label, tone, value, sub) => `<div class="nx-kpi ${tone}"><div class="bar"></div><div class="v" style="font-size:var(--fs-xl)">${esc(value)}</div><div class="l">${esc(label)}</div><div class="s">${esc(sub)}</div></div>`;
+  $('#rel-kpis').innerHTML = tile('Camera (right now)', l.camera_online ? 'green' : 'red', l.camera_online ? 'Online' : 'Offline', 'Live state when this page loaded. No history is stored.') +
+    tile('Gate controller (right now)', !l.gate_integration ? '' : l.gate_reachable === true ? 'green' : l.gate_reachable === false ? 'red' : '', !l.gate_integration ? 'Link disabled' : l.gate_reachable === true ? 'Reachable' : l.gate_reachable === false ? 'No response' : 'Not checked yet', 'Network check of the Pi only. It does not confirm the physical gate position.') +
+    tile('Scan mode', 'ai', String(l.scan_mode || '-').replace(/^./, c => c.toUpperCase()), 'Automatic scanning or guard-triggered scanning.') +
+    `<div class="nx-kpi na"><div class="bar"></div><div class="v">Not available</div><div class="l">Uptime percentage</div><div class="s">${esc(r.note)}</div></div>`;
+  $('#rel-availability').innerHTML = availabilityTable();
+}
+
+async function loadVisitors() {
+  clearErr('visitors');
+  const k = (await ensureSummary()).kpis;
+  paintKpis($('#vis-kpis'), [
+    { kind: 'visitors', preset: { state: 'active' }, value: k.visitors_active, label: 'Active passes', sub: 'Not yet expired', tone: 'green' },
+    { kind: 'visitors', preset: { state: 'expiring' }, value: k.visitors_expiring, label: 'Expiring within 24 h', sub: 'Still valid for now', tone: 'amber' },
+    { kind: 'visitors', preset: { state: 'expired' }, value: k.visitors_expired_unswept, label: 'Expired, awaiting removal', sub: 'Removed automatically within about a minute', tone: k.visitors_expired_unswept ? 'red' : '' },
+  ]);
+  if (!S.visView) S.visView = new RecordView($('#vis-table'), 'visitors', {}); else S.visView.load();
+}
+async function loadIncidents() {
+  clearErr('incidents');
+  const k = (await ensureSummary()).kpis, rev = (S.meta.availability.find(a => a.key === 'alert_reviewer') || {}).recorded;
+  $('#reviewer-note').textContent = rev ? 'and the time with the alert.' : 'once migrations_audit_trail.sql is applied; until then only the reviewed flag is stored.';
+  paintKpis($('#inc-kpis'), [
+    { kind: 'alerts', value: k.alerts, label: 'Alerts in period', sub: 'Plate read repeatedly within an hour' },
+    { kind: 'alerts', preset: { review: 'open' }, value: k.alerts_open, label: 'Needs review', sub: 'Not yet marked reviewed', tone: k.alerts_open ? 'amber' : '' },
+    { kind: 'overrides', preset: { reason: 'other' }, value: 0, label: 'Overrides with a free-text reason', sub: 'Reason "Other" - read the notes', tone: 'amber', _dyn: 'other' },
+  ]);
+  if (S.incView) { S.incView.root.innerHTML = ''; S.incView = null; }
+  S.incView = new RecordView($('#inc-table'), 'alerts', {});
+  // fill the third card with a real count (overrides tagged "other")
+  try { const o = await api('/api/intel/records/overrides', Object.assign({ reason: 'other', page_size: 5 }, rangeParams())); const card = $$('#inc-kpis .nx-kpi')[2]; if (card) { $('.v', card).firstChild.textContent = o.total.toLocaleString(); card.setAttribute('aria-label', 'Overrides with a free-text reason: ' + o.total); } } catch (e) {}
+}
+
+/* ============================== boot ============================== */
+function applyGuardMode() {
+  if (IS_HEAD) return;
+  S.range = 'today'; setRangeUI();
+  ['#range-seg', '#custom-range'].forEach(sel => { const el = $(sel); if (el) el.style.display = 'none'; });
+  const ALLOWED = ['overview', 'traffic', 'investigation', 'visitors', 'incidents'];
+  $$('#tabs button').forEach(b => { if (!ALLOWED.includes(b.dataset.s)) b.remove(); });
+  const scope = $('#inv-scope'); if (scope) scope.style.display = 'none';
+  const ex = $('#drawer-export'); if (ex) ex.style.display = 'none';
+  const lead = document.querySelector('.main-header p');
+  if (lead) lead.textContent = "Today's gate activity, visitor passes and open alerts. Read-only. Plate look-ups cover the last 3 days and are recorded.";
+}
+(async function boot() {
+  applyGuardMode();
+  const h = location.hash.replace('#', ''), valid = $$('#tabs button').map(b => b.dataset.s);
+  try { S.meta = await api('/api/intel/meta'); } catch (e) { $('#gen-meta').textContent = e.message; }
+  selectTab(valid.includes(h) ? h : 'overview');
+})();
+window.addEventListener('hashchange', () => { const h = location.hash.replace('#', ''); if ($$('#tabs button').some(b => b.dataset.s === h) && h !== S.section) selectTab(h); });
+</script>
+{% endraw %}
+</body>
+</html>
